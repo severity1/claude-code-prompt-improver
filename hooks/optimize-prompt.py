@@ -14,16 +14,12 @@ def build_optimization_wrapper(prompt: str, cwd: str) -> str:
     Build the wrapped prompt that instructs Claude to spawn a subagent for evaluation.
     The subagent will intelligently decide if optimization is needed.
     """
-    # Get project context
     project_name = Path(cwd).name if cwd else "unknown"
-    has_claude_md = (Path(cwd) / "CLAUDE.md").exists() if cwd else False
 
     wrapper = f"""PROMPT EVALUATION AND OPTIMIZATION
 
 Original user request: "{prompt}"
-
 Project: {project_name}
-Has CLAUDE.md: {has_claude_md}
 
 ACTION REQUIRED: Spawn a subagent to evaluate if this prompt needs optimization.
 
@@ -35,85 +31,43 @@ Use the Task tool with this configuration:
 
 Original user prompt: "{prompt}"
 
-Your task: Intelligently evaluate if this prompt needs optimization, and optimize if necessary.
+Your task: Evaluate if this prompt needs optimization to be more actionable and specific.
 
-EVALUATION PROCESS:
+APPROACH:
+1. Use your judgment and available tools to understand the project context
+2. Decide if the prompt is clear enough to execute well, or if clarification would help
+3. If optimization is needed, ask the user targeted questions with context-aware suggestions
+4. Synthesize an enriched prompt based on their answers
+5. Show the optimized prompt to the user and ask for confirmation before returning
 
-1. Gather Project Context:
-   - If CLAUDE.md exists, read it for project patterns and conventions
-   - Use Glob to verify any mentioned files exist (check common variations)
-   - Use Grep to search for relevant code patterns
-   - Check git status for recent changes (if relevant)
+WHEN ASKING CLARIFYING QUESTIONS:
+- CRITICAL: Provide rich, specific options based on what you discovered in the codebase
+- Example: Don't just ask "which file?" - search the project and offer actual file paths as options
+- Example: Don't ask generic questions - tailor them to the specific project architecture you found
+- Use multi-select when multiple items might be relevant
+- Include contextual suggestions from what you learned exploring the project
 
-2. Evaluate Prompt Quality:
-   ✓ Is the intent clear? (what does user want to accomplish?)
-   ✓ Are targets specific? (which files/components/areas?)
-   ✓ Is there enough context? (error details, requirements, constraints?)
-   ✓ Is it actionable? (can you start work immediately?)
+WHEN CONFIRMING OPTIMIZED PROMPT:
+- Show the user the optimized prompt you created
+- Ask if they're happy with it using AskUserQuestion
+- Options: "Yes, use this" | "Needs adjustment" | "Use original instead"
+- If adjustment needed, ask what to change and revise
+- Return the final version they approve
 
-   ✗ Red flags:
-   - Generic references ("the app", "the code", "it", "that thing")
-   - Missing error details for fix requests
-   - Missing requirements for feature requests
-   - Ambiguous scope ("update the tests" - which tests?)
+RETURN FORMAT:
+OPTIMIZED_PROMPT:
+<the final prompt - either original if already clear, or enriched version>
 
-3. Decide if Optimization is Needed:
-   - High confidence (can execute well as-is): Return original prompt
-   - Medium/Low confidence (needs clarification): Optimize it
+OPTIMIZATION_NOTES:
+<brief explanation of changes or why none were needed>
 
-4. If Optimization Needed:
-   a) Use AskUserQuestion to offer optimization:
-      Question: "I can help clarify your request for better results. Optimize this prompt?"
-      Options:
-        - "Yes, optimize it" (gather more details)
-        - "No, proceed as-is" (use original prompt)
-        - "What's unclear?" (explain issues first)
+CONFIDENCE: <0-100>
 
-   b) If user wants optimization, ask targeted questions based on what's missing:
-
-      Missing target/scope:
-      - "Which file or component should I work with?"
-      - Provide options if you found candidates via Grep/Glob
-
-      Missing error context (for fixes):
-      - "Do you have error messages or logs to share?"
-      - Options: [Yes, I'll paste them | It's behavioral | Check console]
-
-      Missing requirements (for features):
-      - "What should this feature include?" (multi-select)
-      - Options based on common patterns: [UI components | State management | API calls | Tests | Docs]
-
-      Missing test specifics:
-      - "What type of tests?"
-      - Options: [Unit tests | Integration tests | E2E tests | Component tests]
-
-   c) Synthesize enriched prompt with:
-      - Specific files/components to work with
-      - Clear success criteria
-      - Relevant context from CLAUDE.md
-      - Error details or requirements
-      - Any constraints or preferences
-
-   d) Confirm with user before returning
-
-5. Return Format:
-
-   OPTIMIZED_PROMPT:
-   <the final prompt - either original or enriched version>
-
-   OPTIMIZATION_NOTES:
-   <what was changed and why, or why no changes were needed>
-
-   CONFIDENCE: <0-100>
-
-   CONTEXT_USED:
-   <list any files you read, patterns you found, etc.>
-
-IMPORTANT:
-- If prompt is already clear and specific, return it unchanged
-- Don't over-optimize - sometimes simple requests are fine as-is
-- Focus on making prompts actionable, not just longer
-- Use project context (CLAUDE.md) to align with established patterns
+GUIDELINES:
+- If already clear and actionable, return unchanged
+- Don't over-optimize simple requests
+- Focus on actionability over verbosity
+- Leverage project patterns and conventions you discover
 \"\"\"
 }}
 
@@ -122,13 +76,6 @@ After the subagent returns:
 2. Proceed with executing that optimized prompt
 3. DO NOT include the optimization process details in your main session context
 4. Just execute the task as if the user provided the optimized prompt originally
-"""
-
-    if has_claude_md:
-        wrapper += """
-
-NOTE: This project has CLAUDE.md documentation. The subagent should read it
-to understand project-specific patterns, conventions, and preferences.
 """
 
     return wrapper

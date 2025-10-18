@@ -1,6 +1,6 @@
 # Test Prompts
 
-Test cases for the prompt optimizer.
+Test cases for the prompt optimizer focusing on context-aware suggestions.
 
 ## Should Optimize (Vague Prompts)
 
@@ -46,45 +46,118 @@ Test cases for the prompt optimizer.
 - `! add dark mode` → Should skip evaluation entirely (pass through as-is)
 - `! fix` → Should skip evaluation (even though vague)
 
-Note: All other prompts (without `!`) will spawn a subagent for evaluation. The subagent intelligently decides if optimization is needed.
+Note: All other prompts (without `!`) will spawn a subagent for evaluation. The subagent uses its judgment to decide if optimization is needed.
 
-## Expected Subagent Questions
+## Expected Subagent Behavior (Context-Aware)
+
+The key principle: **Questions must include specific options discovered from the actual codebase.**
 
 ### For "fix the map"
-1. "What's wrong with the map?"
-   - Not loading
-   - Markers missing
-   - Bounds incorrect
-   - Other
 
-2. If "Markers missing":
-   "Which markers?"
-   - User location
-   - Amenities (POIs)
-   - Both
+**Subagent should:**
+1. Glob for map-related files: `**/*map*.{ts,tsx,js,jsx}`
+2. Grep for map components and state
+3. Check recent git changes to map files
+4. Ask with DISCOVERED options:
+
+```
+Question: "Which map component needs fixing?"
+Options (based on what it found):
+  - src/components/Map.tsx (main map component, 342 lines)
+  - src/components/MapMarkers.tsx (marker rendering, 89 lines)
+  - src/stores/mapStore.ts (map state management, 156 lines)
+  - src/hooks/useMapBounds.ts (bounds calculation hook, 45 lines)
+```
+
+**NOT generic options like:**
+```
+❌ Bad: [Component A | Component B | Component C]
+```
+
+5. After synthesizing, show the optimized prompt and confirm:
+```
+"I've optimized your prompt to:
+
+'Fix the Map component in src/components/Map.tsx: investigate why markers
+are not rendering after the recent Mapbox GL update. Check the marker
+layer initialization in the useEffect hook at line 127.'
+
+Happy with this?"
+Options:
+  - Yes, use this
+  - Needs adjustment
+  - Use original instead
+```
 
 ### For "add authentication"
-1. "Which authentication method?"
-   - OAuth 2.0
-   - JWT
-   - Session cookies
 
-2. "What should it include?" (multi-select)
-   - Login UI
-   - Signup UI
-   - Protected routes
-   - Token refresh
-   - Logout functionality
+**Subagent should:**
+1. Check package.json for existing auth libraries
+2. Grep for existing auth patterns
+3. Read CLAUDE.md for auth conventions
+4. Glob for auth-related files
+5. Ask with CONTEXT:
+
+```
+Question: "I don't see any existing auth implementation. Which method?"
+Options:
+  - OAuth 2.0 (requires provider like Google/GitHub)
+  - JWT (stateless, token-based)
+  - Session cookies (server-side sessions)
+```
+
+Then if JWT selected:
+```
+Question: "What should the auth system include?" (multi-select)
+Options based on typical patterns + project structure:
+  - Login/signup UI (add to src/components/auth/)
+  - Protected route wrapper (integrate with existing router in src/App.tsx)
+  - Auth context/store (follow Zustand pattern from src/stores/)
+  - Token refresh logic
+  - localStorage persistence
+```
 
 ### For "add tests"
-1. "What type of tests?"
-   - Unit tests
-   - Integration tests
-   - E2E tests
-   - Component tests
 
-2. "For which component/feature?"
-   - (Subagent should Grep for testable components)
+**Subagent should:**
+1. Glob for existing test files to understand test patterns
+2. Glob for testable components
+3. Check test framework in package.json
+4. Ask with ACTUAL components:
+
+```
+Question: "Which component should I add tests for?"
+Options (discovered from src/components/):
+  - DualRangeSlider.tsx (complex logic, no tests yet)
+  - MapMarkers.tsx (rendering logic, has partial tests)
+  - SearchBar.tsx (user input, no tests)
+  - FilterPanel.tsx (state management, no tests)
+```
+
+Then:
+```
+Question: "What type of tests? (Project uses Jest + React Testing Library)"
+Options:
+  - Unit tests (component logic)
+  - Integration tests (component interactions)
+  - Snapshot tests (UI regression)
+```
+
+### For "fix the error"
+
+**Subagent should:**
+1. Check recent git changes for modified files
+2. Grep for error handling patterns (try/catch, .catch, etc.)
+3. Look for console.error or logging
+4. Ask:
+
+```
+Question: "Which error? (Found these in recently modified files)"
+Options:
+  - TypeError in src/components/Map.tsx (modified 2 hours ago)
+  - Network error in src/services/osmService.ts (has .catch handlers)
+  - [Other - I'll paste the error message]
+```
 
 ## Integration Tests
 
@@ -100,4 +173,27 @@ Note: All other prompts (without `!`) will spawn a subagent for evaluation. The 
 ```
 
 ### Expected Output Format
-Wrapped prompt that instructs Claude to spawn subagent with specific evaluation criteria.
+Wrapped prompt that instructs Claude to:
+1. Spawn subagent for evaluation
+2. Subagent explores codebase (using its judgment on how)
+3. Subagent asks context-aware questions if needed
+4. Subagent shows optimized prompt and asks for user confirmation
+5. Returns approved prompt or original
+
+### Validation Criteria
+
+**Good subagent behavior:**
+- ✅ Uses Glob/Grep to discover actual files before asking
+- ✅ Provides specific file paths and descriptions as options
+- ✅ Tailors questions to the specific project architecture
+- ✅ Uses multi-select when multiple items might be relevant
+- ✅ Shows optimized prompt and asks for user confirmation
+- ✅ Offers "Use original instead" option during confirmation
+- ✅ Returns unchanged if already clear
+
+**Bad subagent behavior:**
+- ❌ Asks generic questions without exploring first
+- ❌ Provides placeholder options like [Option 1 | Option 2]
+- ❌ Doesn't use available tools to gather context
+- ❌ Over-optimizes simple, clear requests
+- ❌ Asks for information already in the prompt

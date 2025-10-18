@@ -1,17 +1,17 @@
 # Claude Code Prompt Optimizer
 
-A sophisticated hook system for Claude Code that automatically evaluates and optimizes vague user prompts using subagent architecture.
+A hook system for Claude Code that automatically evaluates and optimizes vague user prompts using subagent architecture.
 
 ## Overview
 
-This hook intercepts user prompts before Claude Code processes them, evaluates if they need clarification, and uses a dedicated subagent to gather context and optimize the prompt. This keeps your main session's context window clean while ensuring you always get the best results.
+This hook intercepts user prompts before Claude Code processes them and uses a dedicated subagent to evaluate if clarification would help. The subagent explores the project, asks context-aware questions, and synthesizes an enriched prompt. This keeps your main session's context window clean while ensuring you get the best results.
 
 ## Features
 
-- **AI-Powered Evaluation**: Uses Claude subagent to intelligently evaluate prompt quality
+- **AI-Powered Evaluation**: Uses Claude's judgment to decide if optimization would help
 - **Subagent Architecture**: Isolated sessions for optimization preserve main context window
-- **Interactive Clarification**: Uses AskUserQuestion picker UI for smooth user experience
-- **Project-Aware**: Reads CLAUDE.md and explores codebase for context
+- **Context-Aware Suggestions**: Questions include actual file paths and options discovered from your codebase
+- **Project-Aware**: Leverages CLAUDE.md and explores your specific project structure
 - **No Hardcoded Rules**: Relies on Claude's intelligence, not brittle heuristics
 - **Token Efficient**: Keeps main session lean by offloading exploration to subagents
 
@@ -20,18 +20,18 @@ This hook intercepts user prompts before Claude Code processes them, evaluates i
 ```
 User: "fix the map"
     ↓
-Hook wraps prompt (no heuristics - always evaluates)
+Hook wraps prompt (always evaluates)
     ↓
 Main Claude spawns evaluation subagent
     ↓
-Subagent intelligently evaluates:
-  - Reads project docs (CLAUDE.md)
-  - Explores codebase (Glob/Grep)
-  - Decides if optimization needed
-  - If yes: Asks clarifying questions (AskUserQuestion)
-  - Builds enriched prompt
+Subagent uses judgment to:
+  - Explore project context
+  - Decide if optimization needed
+  - If yes: Ask questions with SPECIFIC options from codebase
+  - Build enriched prompt
+  - Show optimized prompt and ask user for confirmation
     ↓
-Main Claude receives optimized prompt
+Main Claude receives approved prompt
     ↓
 Executes task with full context (clean session)
 ```
@@ -74,14 +74,16 @@ Executes task with full context (clean session)
 
 ### Default Behavior
 
-Just use Claude Code normally. The optimizer runs automatically on vague prompts:
+Just use Claude Code normally. The optimizer runs automatically on prompts:
 
 ```bash
 claude "fix the bug"
-# → Optimizer asks: "Which bug? In which file?"
+# → Optimizer explores codebase, finds recent error logs
+# → Asks: "Which bug?" with options based on what it found
 
 claude "add tests"
-# → Optimizer asks: "What kind of tests? For which components?"
+# → Optimizer searches for test files and testable components
+# → Asks: "Add tests for which component?" with actual component names
 ```
 
 ### Bypass Optimization
@@ -97,26 +99,34 @@ claude "! add dark mode"
 
 ### How Evaluation Works
 
-The hook **always** spawns a subagent to evaluate prompts (unless bypassed with `!`). The subagent uses Claude's intelligence to decide if optimization is needed - no hardcoded rules or thresholds.
+The hook **always** spawns a subagent to evaluate prompts (unless bypassed with `!`). The subagent uses its judgment and available tools to decide if optimization is needed - no hardcoded rules or thresholds.
 
 **Benefits:**
 - Adapts to context (what's clear in one project may be vague in another)
-- Learns from project patterns (CLAUDE.md)
+- Learns from project patterns (CLAUDE.md, architecture, conventions)
 - No maintenance of brittle heuristics
 - Smarter decisions than word-count rules
 
-### Project-Specific Patterns
+### Context-Aware Suggestions
 
-The hook automatically reads `CLAUDE.md` if it exists and injects project-specific reminders:
+The key feature is **rich, specific suggestions** based on actual discovery:
 
-```python
-# Example: For a React project
-if "React" in claude_md_content:
-    wrapper += """
-Project uses React + TypeScript.
-Remind user about component patterns from CLAUDE.md.
-"""
+**Bad (generic):**
 ```
+Question: "Which file should I work with?"
+Options: [File 1 | File 2 | File 3]
+```
+
+**Good (context-aware):**
+```
+Question: "Which map component should I fix?"
+Options:
+  - src/components/Map.tsx (main map component)
+  - src/components/MapMarkers.tsx (marker rendering)
+  - src/stores/mapStore.ts (map state management)
+```
+
+The subagent searches your codebase first, then offers actual findings as options.
 
 ## Architecture
 
@@ -142,17 +152,17 @@ Subagent Session: 40k tokens used (then discarded)
 └─ Prompt synthesis: 5k
 ```
 
-### Evaluation Process
+### Evaluation Approach
 
 The hook **always** spawns a subagent (no pre-filtering). The subagent then:
 
-1. **Gathers context** - Reads CLAUDE.md, globs for files, greps patterns
-2. **Evaluates quality** - Uses Claude's intelligence to assess clarity
-3. **Decides** - High confidence → return original; Low confidence → optimize
-4. **Optimizes** - Asks targeted questions using AskUserQuestion
-5. **Returns** - Enriched prompt or original (with confidence score)
+1. **Explores** - Uses judgment and tools to understand project context
+2. **Evaluates** - Decides if the prompt is clear enough to execute well
+3. **Optimizes (if needed)** - Asks targeted questions with context-specific options
+4. **Confirms** - Shows optimized prompt and asks user for approval
+5. **Returns** - Approved prompt or original (with confidence score)
 
-No hardcoded thresholds - the subagent adapts to project context.
+No prescriptive steps - the subagent adapts its approach to the specific prompt and project.
 
 ## Examples
 
@@ -162,16 +172,24 @@ No hardcoded thresholds - the subagent adapts to project context.
 User: "fix the error"
 
 Subagent:
-1. Reads CLAUDE.md
-2. Checks recent git changes
-3. Asks: "What error? Do you have error messages?"
-4. User: "TypeError in Map.tsx"
-5. Asks: "Can you paste the error?"
-6. User: [pastes error]
+1. Checks recent git changes → finds modified files
+2. Greps for error patterns → finds try/catch blocks
+3. Asks: "Which error?" with options:
+   - TypeError in src/components/Map.tsx (recent change)
+   - API timeout in src/services/osmService.ts (has error handling)
+   - [Other - paste error message]
+4. User selects Map.tsx
+5. Asks to paste error if available
+6. User: [pastes TypeError details]
+7. Subagent synthesizes and shows:
+   "Fix TypeError in src/components/Map.tsx line 42: Cannot read
+   property 'current' of undefined when accessing map.current. This
+   occurs during component initialization. Check useEffect dependencies."
+8. Asks: "Happy with this optimized prompt?"
+   Options: [Yes, use this | Needs adjustment | Use original instead]
+9. User: "Yes, use this"
 
-Optimized: "Fix TypeError in Map.tsx line 42: Cannot read property
-'current' of undefined. This occurs when accessing map.current before
-initialization. Check useEffect dependencies."
+Optimized prompt sent to main Claude session.
 ```
 
 ### Example 2: Incomplete Feature Request
@@ -180,21 +198,31 @@ initialization. Check useEffect dependencies."
 User: "add authentication"
 
 Subagent:
-1. Checks package.json (no auth libraries)
-2. Reads CLAUDE.md (no auth patterns documented)
-3. Asks: "Which auth method?"
+1. Checks package.json → no auth libraries found
+2. Reads CLAUDE.md → no auth patterns documented
+3. Globs for auth files → none exist (new feature)
+4. Asks: "Which authentication method?"
    Options: [OAuth 2.0 | JWT | Session cookies]
-4. User: "JWT"
-5. Asks: "What should it include?" (multi-select)
-   Options: [Login UI | Signup UI | Protected routes | Token refresh]
-6. User: [selects all]
+5. User: "JWT"
+6. Asks: "What should it include?" (multi-select)
+   Options based on typical JWT patterns:
+   - Login/signup UI components
+   - Protected route wrapper
+   - Token refresh logic
+   - Auth state persistence
+7. User: [selects all]
+8. Subagent synthesizes and shows:
+   "Implement JWT authentication system:
+   - Add login/signup UI components
+   - Create auth context for token management
+   - Add protected route HOC/wrapper
+   - Implement token refresh logic
+   - Persist auth state to localStorage
+   Follow project patterns from CLAUDE.md for state management."
+9. Asks: "Happy with this optimized prompt?"
+   User: "Yes, use this"
 
-Optimized: "Implement JWT authentication system:
-- Add login/signup UI components
-- Create auth context/store for token management
-- Add route protection HOC
-- Implement token refresh logic
-- Persist auth state to localStorage"
+Optimized prompt sent to main Claude session.
 ```
 
 ### Example 3: Already Clear Prompt
@@ -217,14 +245,12 @@ Main Claude: Proceeds immediately with fix
 ```
 claude-prompt-optimizer/
 ├── hooks/
-│   └── optimize-prompt.py          # Main hook script
+│   └── optimize-prompt.py          # Main hook script (102 lines)
 ├── examples/
 │   ├── settings.json               # Example hook config
 │   └── project-claude-md.example   # Example CLAUDE.md
 ├── tests/
 │   └── test-prompts.md             # Test cases
-├── docs/
-│   └── architecture.md             # Detailed design docs
 ├── README.md
 └── LICENSE
 ```
@@ -243,18 +269,11 @@ python3 hooks/optimize-prompt.py < test-inputs/detailed.json
 
 See `tests/test-prompts.md` for comprehensive test cases.
 
-## Roadmap
+## Key Principle
 
-- [ ] Confidence scoring system
-- [ ] Learning from past optimizations
-- [ ] Multi-language support (Python, Node.js, etc.)
-- [ ] Template library for common prompt patterns
-- [ ] Analytics dashboard for optimization metrics
-- [ ] Integration with Claude Code analytics
+**Don't be prescriptive** - Trust Claude to use its judgment and tools appropriately.
 
-## Contributing
-
-Contributions welcome! Please see issues for current priorities.
+**Do emphasize** - Questions must include rich, context-specific suggestions based on actual codebase discovery, not generic options.
 
 ## License
 
