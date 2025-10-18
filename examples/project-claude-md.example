@@ -1,0 +1,38 @@
+# CLAUDE.md Example
+
+This is an example CLAUDE.md file that the prompt optimizer will read.
+
+## Project Patterns
+
+### State Management
+- Use Zustand for global state (not Redux)
+- Component-local state for UI-only concerns
+- Never store map instances in useState (use useRef)
+
+### Common Mistakes
+- ❌ Using `amenity=supermarket` (wrong OSM tag)
+- ✅ Using `shop=supermarket` (correct OSM tag)
+
+### Architecture
+- Map.tsx: Single Mapbox GL JS instance (ref-based)
+- ConfigPanel.tsx: Connects to Zustand store
+- osmService.ts: OpenStreetMap API client (rate limited)
+
+## Development Workflow
+
+When fixing bugs:
+1. Always check console for errors first
+2. Verify file paths match actual structure
+3. Run `npm run build` to catch TypeScript errors
+
+When adding features:
+1. Update TypeScript interfaces first
+2. Add to Zustand store if global state needed
+3. Consider dark mode support (project uses Tailwind v4)
+
+## Testing
+- Run `npm run lint` before committing
+- Manual testing required (no automated tests yet)
+
+This context helps the prompt optimizer understand project-specific patterns
+and guide users accordingly.
