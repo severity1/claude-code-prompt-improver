@@ -43,12 +43,10 @@ Test cases for the prompt optimizer.
 ## Bypass Commands
 
 ### Explicit Bypass
-- `! add dark mode` → Should skip optimization
-- `! fix` → Should skip optimization (even though vague)
+- `! add dark mode` → Should skip evaluation entirely (pass through as-is)
+- `! fix` → Should skip evaluation (even though vague)
 
-### Strict Mode
-- `@strict implement authentication` → Should always optimize
-- `@strict fix Map.tsx` → Should always optimize (even if clear)
+Note: All other prompts (without `!`) will spawn a subagent for evaluation. The subagent intelligently decides if optimization is needed.
 
 ## Expected Subagent Questions
 

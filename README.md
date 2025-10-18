@@ -8,11 +8,11 @@ This hook intercepts user prompts before Claude Code processes them, evaluates i
 
 ## Features
 
-- **Intelligent Evaluation**: Analyzes prompts for clarity, specificity, and actionability
-- **Subagent Architecture**: Uses isolated sessions for optimization to preserve main context
+- **AI-Powered Evaluation**: Uses Claude subagent to intelligently evaluate prompt quality
+- **Subagent Architecture**: Isolated sessions for optimization preserve main context window
 - **Interactive Clarification**: Uses AskUserQuestion picker UI for smooth user experience
 - **Project-Aware**: Reads CLAUDE.md and explores codebase for context
-- **Configurable**: Easy bypass mechanisms and customization options
+- **No Hardcoded Rules**: Relies on Claude's intelligence, not brittle heuristics
 - **Token Efficient**: Keeps main session lean by offloading exploration to subagents
 
 ## How It Works
@@ -20,14 +20,15 @@ This hook intercepts user prompts before Claude Code processes them, evaluates i
 ```
 User: "fix the map"
     ↓
-Hook intercepts and wraps prompt
+Hook wraps prompt (no heuristics - always evaluates)
     ↓
-Main Claude spawns optimization subagent
+Main Claude spawns evaluation subagent
     ↓
-Subagent:
+Subagent intelligently evaluates:
   - Reads project docs (CLAUDE.md)
   - Explores codebase (Glob/Grep)
-  - Asks clarifying questions (AskUserQuestion)
+  - Decides if optimization needed
+  - If yes: Asks clarifying questions (AskUserQuestion)
   - Builds enriched prompt
     ↓
 Main Claude receives optimized prompt
@@ -85,35 +86,24 @@ claude "add tests"
 
 ### Bypass Optimization
 
-Start your prompt with `!` to skip optimization:
+Start your prompt with `!` to skip evaluation entirely:
 
 ```bash
 claude "! add dark mode"
-# → Executes immediately without optimization
-```
-
-### Always Optimize
-
-Start with `@strict` to force optimization even on clear prompts:
-
-```bash
-claude "@strict implement user authentication"
-# → Always asks clarifying questions
+# → Executes immediately without subagent evaluation
 ```
 
 ## Configuration
 
-### Optimization Thresholds
+### How Evaluation Works
 
-Edit `optimize-prompt.py` to customize when optimization triggers:
+The hook **always** spawns a subagent to evaluate prompts (unless bypassed with `!`). The subagent uses Claude's intelligence to decide if optimization is needed - no hardcoded rules or thresholds.
 
-```python
-# Prompt length threshold
-MIN_WORDS = 5  # Prompts under this are always optimized
-
-# Auto-bypass for detailed prompts
-DETAILED_THRESHOLD = 15  # Prompts over this with file refs bypass
-```
+**Benefits:**
+- Adapts to context (what's clear in one project may be vague in another)
+- Learns from project patterns (CLAUDE.md)
+- No maintenance of brittle heuristics
+- Smarter decisions than word-count rules
 
 ### Project-Specific Patterns
 
@@ -152,22 +142,17 @@ Subagent Session: 40k tokens used (then discarded)
 └─ Prompt synthesis: 5k
 ```
 
-### Decision Tree
+### Evaluation Process
 
-The hook uses a simple heuristic for initial triage:
+The hook **always** spawns a subagent (no pre-filtering). The subagent then:
 
-```python
-if word_count < 3:
-    # Always optimize
-elif word_count < 5 and no_file_references:
-    # Likely needs optimization
-elif word_count > 15 and has_specifics:
-    # Probably good as-is
-else:
-    # Let subagent decide
-```
+1. **Gathers context** - Reads CLAUDE.md, globs for files, greps patterns
+2. **Evaluates quality** - Uses Claude's intelligence to assess clarity
+3. **Decides** - High confidence → return original; Low confidence → optimize
+4. **Optimizes** - Asks targeted questions using AskUserQuestion
+5. **Returns** - Enriched prompt or original (with confidence score)
 
-The subagent then does deep evaluation with full project context.
+No hardcoded thresholds - the subagent adapts to project context.
 
 ## Examples
 

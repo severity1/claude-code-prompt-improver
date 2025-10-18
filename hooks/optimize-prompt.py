@@ -1,84 +1,41 @@
 #!/usr/bin/env python3
 """
 Claude Code Prompt Optimizer Hook
-Intercepts user prompts and spawns a subagent to optimize vague/unclear prompts.
+Intercepts user prompts and spawns a subagent to evaluate and optimize them.
+Uses Claude Haiku subagent for intelligent evaluation.
 """
 import sys
 import json
 from pathlib import Path
 
 
-# Configuration
-MIN_WORDS = 5  # Prompts shorter than this are likely vague
-DETAILED_THRESHOLD = 15  # Prompts longer than this with specifics are likely clear
-FILE_EXTENSIONS = ['.ts', '.tsx', '.py', '.js', '.json', '.md', '.css', '.html']
-
-
-def should_optimize(prompt: str, cwd: str) -> bool:
-    """
-    Quick heuristic to decide if prompt needs optimization.
-    True = needs optimization, False = pass through as-is
-    """
-    # User explicitly bypassed optimization
-    if prompt.startswith("!"):
-        return False
-
-    # User explicitly requested strict optimization
-    if prompt.startswith("@strict"):
-        return True
-
-    # Check basic metrics
-    word_count = len(prompt.split())
-    has_file_ref = any(ext in prompt for ext in FILE_EXTENSIONS)
-    has_path_ref = 'src/' in prompt or './' in prompt or '/' in prompt
-
-    # Very short prompts almost always need optimization
-    if word_count < 3:
-        return True
-
-    # Short without specifics needs optimization
-    if word_count < MIN_WORDS and not (has_file_ref or has_path_ref):
-        return True
-
-    # Long with specifics is probably fine
-    if word_count > DETAILED_THRESHOLD and (has_file_ref or has_path_ref):
-        return False
-
-    # Medium-length prompts - let subagent decide with deeper analysis
-    if MIN_WORDS <= word_count <= DETAILED_THRESHOLD:
-        return True
-
-    # Default to optimization for safety
-    return True
-
-
 def build_optimization_wrapper(prompt: str, cwd: str) -> str:
     """
-    Build the wrapped prompt that instructs Claude to use subagent for optimization.
+    Build the wrapped prompt that instructs Claude to spawn a subagent for evaluation.
+    The subagent will intelligently decide if optimization is needed.
     """
-    # Clean prefix commands
-    clean_prompt = prompt.lstrip("!@strict").strip()
-
     # Get project context
     project_name = Path(cwd).name if cwd else "unknown"
     has_claude_md = (Path(cwd) / "CLAUDE.md").exists() if cwd else False
 
-    wrapper = f"""PROMPT OPTIMIZATION MODE
+    wrapper = f"""PROMPT EVALUATION AND OPTIMIZATION
 
-Original user request: "{clean_prompt}"
+Original user request: "{prompt}"
 
 Project: {project_name}
 Has CLAUDE.md: {has_claude_md}
 
-ACTION REQUIRED: This prompt may benefit from optimization. Use the Task tool to spawn a subagent.
+ACTION REQUIRED: Spawn a subagent to evaluate if this prompt needs optimization.
 
-Subagent Configuration:
+Use the Task tool with this configuration:
 {{
   "subagent_type": "general-purpose",
-  "description": "Optimize user prompt",
-  "prompt": \"\"\"You are a prompt optimizer for Claude Code.
+  "description": "Evaluate and optimize prompt",
+  "prompt": \"\"\"You are a prompt evaluation and optimization agent for Claude Code.
 
-Your task: Evaluate and optimize this user prompt: "{clean_prompt}"
+Original user prompt: "{prompt}"
+
+Your task: Intelligently evaluate if this prompt needs optimization, and optimize if necessary.
 
 EVALUATION PROCESS:
 
@@ -188,14 +145,14 @@ def main():
     prompt = hook_data.get("prompt", "")
     cwd = hook_data.get("cwd", "")
 
-    # Decide if optimization is needed
-    if not should_optimize(prompt, cwd):
-        # Pass through as-is (strip prefix commands if present)
-        clean_prompt = prompt.lstrip("!").strip()
+    # Check for bypass command
+    if prompt.startswith("!"):
+        # User explicitly bypassed optimization - pass through as-is
+        clean_prompt = prompt[1:].strip()
         print(clean_prompt)
         sys.exit(0)
 
-    # Build and output the optimization wrapper
+    # Always spawn subagent to evaluate and potentially optimize
     wrapped_prompt = build_optimization_wrapper(prompt, cwd)
     print(wrapped_prompt)
     sys.exit(0)
