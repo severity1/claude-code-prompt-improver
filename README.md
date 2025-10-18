@@ -1,6 +1,6 @@
 # Claude Code Prompt Improver
 
-A UserPromptSubmit hook that enriches vague prompts before Claude Code executes them.
+A UserPromptSubmit hook that enriches vague prompts before Claude Code executes them. Uses the AskUserQuestion tool (Claude Code 2.0.22+) for targeted clarifying questions.
 
 ## What It Does
 
@@ -25,6 +25,8 @@ Clear? → Proceeds immediately
 ```
 
 ## Installation
+
+**Requirements:** Claude Code 2.0.22+ (uses AskUserQuestion tool for targeted clarifying questions)
 
 **1. Copy the hook:**
 ```bash
@@ -138,7 +140,7 @@ No. It rarely intervenes, passes through most prompts, and asks max 1-2 question
 **Can I customize behavior?**
 It adapts automatically using conversation history, codebase exploration, and CLAUDE.md.
 
-**What if I don't want optimization?**
+**What if I don't want improvement?**
 Use `*` prefix: `claude "* your prompt here"`
 
 ## License
