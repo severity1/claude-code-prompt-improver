@@ -2,24 +2,47 @@
 """
 Claude Code Prompt Optimizer Hook
 Intercepts user prompts and spawns a subagent to evaluate and optimize them.
-Uses Claude Haiku subagent for intelligent evaluation.
+Uses subagent for intelligent evaluation.
 """
-import sys
 import json
-from pathlib import Path
+import sys
 
+# Load input from stdin
+try:
+    input_data = json.load(sys.stdin)
+except json.JSONDecodeError as e:
+    print(f"Error: Invalid JSON input: {e}", file=sys.stderr)
+    sys.exit(1)
 
-def build_optimization_wrapper(prompt: str, cwd: str) -> str:
-    """
-    Build the wrapped prompt that instructs Claude to spawn a subagent for evaluation.
-    The subagent will intelligently decide if optimization is needed.
-    """
-    project_name = Path(cwd).name if cwd else "unknown"
+prompt = input_data.get("prompt", "")
 
-    wrapper = f"""PROMPT EVALUATION AND OPTIMIZATION
+# Escape quotes in prompt for safe embedding in wrapped instructions
+escaped_prompt = prompt.replace("\\", "\\\\").replace('"', '\\"')
 
-Original user request: "{prompt}"
-Project: {project_name}
+# Check for bypass conditions
+# 1. Explicit bypass with ! prefix
+# 2. Slash commands (built-in or custom)
+if prompt.startswith("!"):
+    # User explicitly bypassed optimization - remove ! prefix
+    clean_prompt = prompt[1:].strip()
+    output = {
+        "hookSpecificOutput": {
+            "hookEventName": "UserPromptSubmit",
+            "additionalContext": clean_prompt,
+        }
+    }
+    print(json.dumps(output))
+    sys.exit(0)
+
+if prompt.startswith("/"):
+    # Slash command - pass through unchanged
+    print(prompt)
+    sys.exit(0)
+
+# Build the optimization wrapper
+wrapped_prompt = f"""PROMPT EVALUATION AND OPTIMIZATION
+
+Original user request: "{escaped_prompt}"
 
 ACTION REQUIRED: Spawn a subagent to evaluate if this prompt needs optimization.
 
@@ -29,7 +52,7 @@ Use the Task tool with this configuration:
   "description": "Evaluate and optimize prompt",
   "prompt": \"\"\"You are a prompt evaluation and optimization agent for Claude Code.
 
-Original user prompt: "{prompt}"
+Original user prompt: "{escaped_prompt}"
 
 Your task: Evaluate if this prompt needs optimization to be more actionable and specific.
 
@@ -39,6 +62,14 @@ APPROACH:
 3. If optimization is needed, ask the user targeted questions with context-aware suggestions
 4. Synthesize an enriched prompt based on their answers
 5. Show the optimized prompt to the user and ask for confirmation before returning
+
+AVOID USER FATIGUE:
+- Don't be pedantic - if the prompt is "good enough", let it through
+- Keep questions to a minimum (ideally 1-2 questions maximum)
+- When in doubt, trust the user's intent and proceed
+- If you can infer reasonable context from exploration, don't ask - just use it
+- Only ask when clarification would significantly improve the outcome
+- Combine related questions when possible instead of asking separately
 
 WHEN ASKING CLARIFYING QUESTIONS:
 - CRITICAL: Provide rich, specific options based on what you discovered in the codebase
@@ -68,6 +99,9 @@ GUIDELINES:
 - Don't over-optimize simple requests
 - Focus on actionability over verbosity
 - Leverage project patterns and conventions you discover
+- Prefer inferring context over asking questions
+- Err on the side of proceeding rather than over-questioning
+- The goal is helpfulness, not perfection
 \"\"\"
 }}
 
@@ -78,32 +112,5 @@ After the subagent returns:
 4. Just execute the task as if the user provided the optimized prompt originally
 """
 
-    return wrapper
-
-
-def main():
-    # Read hook input from stdin
-    try:
-        hook_data = json.load(sys.stdin)
-    except json.JSONDecodeError:
-        # Fallback if stdin is not JSON
-        sys.exit(0)
-
-    prompt = hook_data.get("prompt", "")
-    cwd = hook_data.get("cwd", "")
-
-    # Check for bypass command
-    if prompt.startswith("!"):
-        # User explicitly bypassed optimization - pass through as-is
-        clean_prompt = prompt[1:].strip()
-        print(clean_prompt)
-        sys.exit(0)
-
-    # Always spawn subagent to evaluate and potentially optimize
-    wrapped_prompt = build_optimization_wrapper(prompt, cwd)
-    print(wrapped_prompt)
-    sys.exit(0)
-
-
-if __name__ == "__main__":
-    main()
+print(wrapped_prompt)
+sys.exit(0)

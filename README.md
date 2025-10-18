@@ -1,284 +1,250 @@
 # Claude Code Prompt Optimizer
 
-A hook system for Claude Code that automatically evaluates and optimizes vague user prompts using subagent architecture.
+Automatically clarifies vague prompts before Claude Code executes them, so you get better results without back-and-forth.
 
-## Overview
+## What It Does
 
-This hook intercepts user prompts before Claude Code processes them and uses a dedicated subagent to evaluate if clarification would help. The subagent explores the project, asks context-aware questions, and synthesizes an enriched prompt. This keeps your main session's context window clean while ensuring you get the best results.
+When you submit a vague prompt like `"fix the bug"` or `"add tests"`, this hook:
+- Explores your project to understand the context
+- Asks targeted questions with real options from your codebase (actual file names, not generic choices)
+- Creates an enriched prompt based on your answers
+- Asks for your confirmation before executing
 
-## Features
-
-- **AI-Powered Evaluation**: Uses Claude's judgment to decide if optimization would help
-- **Subagent Architecture**: Isolated sessions for optimization preserve main context window
-- **Context-Aware Suggestions**: Questions include actual file paths and options discovered from your codebase
-- **Project-Aware**: Leverages CLAUDE.md and explores your specific project structure
-- **No Hardcoded Rules**: Relies on Claude's intelligence, not brittle heuristics
-- **Token Efficient**: Keeps main session lean by offloading exploration to subagents
+The result: Claude has all the context needed to do the work right the first time.
 
 ## How It Works
 
 ```
-User: "fix the map"
-    ↓
-Hook wraps prompt (always evaluates)
-    ↓
-Main Claude spawns evaluation subagent
-    ↓
-Subagent uses judgment to:
-  - Explore project context
-  - Decide if optimization needed
-  - If yes: Ask questions with SPECIFIC options from codebase
-  - Build enriched prompt
-  - Show optimized prompt and ask user for confirmation
-    ↓
-Main Claude receives approved prompt
-    ↓
-Executes task with full context (clean session)
+User submits prompt: "fix the map"
+         ↓
+Hook intercepts via UserPromptSubmit event
+         ↓
+Main Claude spawns subagent
+         ↓
+Subagent workflow:
+  1. Explores project (Glob/Grep for map-related files)
+  2. Evaluates if prompt is clear (uses AI judgment)
+  3. If vague: Asks questions with actual file paths found
+  4. Synthesizes enriched prompt from answers
+  5. Shows optimized prompt, asks for confirmation
+         ↓
+User confirms optimized prompt
+         ↓
+Subagent returns approved prompt to main Claude
+         ↓
+Main Claude executes with enriched context
+(subagent session discarded, context window stays clean)
+```
+
+## Architecture
+
+**Why Subagents?**
+
+The hook uses an isolated subagent session for optimization to keep your main Claude session clean and token-efficient.
+
+**Design Philosophy:**
+
+The optimizer is designed to be helpful without being annoying:
+- Only asks questions when clarification would significantly improve results
+- Keeps questions to 1-2 maximum (no interrogations)
+- Infers context from project exploration when possible
+- Errs on the side of proceeding rather than over-questioning
+- "Good enough" prompts pass through unchanged
+
+**Without subagent architecture:**
+- Main session gets cluttered with exploration (file searches, questions, etc.)
+- Uses 80k+ tokens: 30k exploration + 20k Q&A + 30k actual work
+- Less room for complex tasks
+- Optimization overhead visible in conversation
+
+**With subagent architecture:**
+- Optimization happens in isolated session (then discarded)
+- Main session: 35k tokens for actual work only
+- Subagent session: 40k tokens (exploration + Q&A), then thrown away
+- Main session stays focused and efficient
+- User sees only the final optimized prompt
+
+**Key Components:**
+
+1. **Hook Script** (`optimize-prompt.py`)
+   - Intercepts prompts via stdin/stdout JSON
+   - Wraps prompt with subagent instructions
+   - Handles bypass logic (prompts starting with `!` or `/`)
+
+2. **Subagent**
+   - Explores project using available tools (Glob, Grep, Read)
+   - Uses AI judgment (no hardcoded rules)
+   - Asks context-aware questions with real options from codebase
+   - Confirms optimized prompt with user before returning
+
+3. **Main Session (Claude Sonnet)**
+   - Receives optimized prompt from subagent
+   - Executes task with full context
+   - No optimization details in context window
+
+## Why Use This
+
+**Without optimizer:**
+```bash
+$ claude "fix the map"
+Claude: Which map component? What's the issue?
+You: The marker rendering
+Claude: In which file?
+You: Map.tsx
+Claude: What's wrong with it?
+You: Markers aren't showing...
+```
+
+**With optimizer:**
+```bash
+$ claude "fix the map"
+Hook: Which component needs fixing?
+  - src/components/Map.tsx (main map component)
+  - src/components/MapMarkers.tsx (marker rendering)
+  - src/stores/mapStore.ts (map state)
+You: [select MapMarkers.tsx] Markers stopped showing after update
+Hook: Optimized prompt: "Fix marker rendering in MapMarkers.tsx..."
+You: [confirm]
+Claude: [immediately starts fixing with full context]
 ```
 
 ## Installation
 
-1. **Install the hook:**
-   ```bash
-   cp hooks/optimize-prompt.py ~/.claude/hooks/
-   chmod +x ~/.claude/hooks/optimize-prompt.py
-   ```
+**1. Copy the hook script:**
+```bash
+cp hooks/optimize-prompt.py ~/.claude/hooks/
+chmod +x ~/.claude/hooks/optimize-prompt.py
+```
 
-2. **Configure Claude Code:**
+**2. Add to your Claude settings:**
 
-   Add to `~/.claude/settings.json`:
-   ```json
-   {
-     "hooks": {
-       "UserPromptSubmit": [
-         {
-           "matcher": "*",
-           "hooks": [
-             {
-               "type": "command",
-               "command": "python3 ~/.claude/hooks/optimize-prompt.py",
-               "timeout": 2
-             }
-           ]
-         }
-       ]
-     }
-   }
-   ```
+Edit `~/.claude/settings.json` and add:
+```json
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ~/.claude/hooks/optimize-prompt.py"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
 
-3. **Optional: Project-specific config:**
+**Note:** The hook follows the [official UserPromptSubmit pattern](https://docs.claude.com/en/docs/claude-code/hooks-guide) with JSON input/output. No timeout is specified since the optimization process may need time for project exploration and user questions.
 
-   For project-specific optimization, copy to `.claude/settings.json` in your project.
+That's it. The hook will now run automatically on every prompt.
 
 ## Usage
 
-### Default Behavior
-
-Just use Claude Code normally. The optimizer runs automatically on prompts:
-
+**Normal use** - Just use Claude Code as usual:
 ```bash
 claude "fix the bug"
-# → Optimizer explores codebase, finds recent error logs
-# → Asks: "Which bug?" with options based on what it found
-
 claude "add tests"
-# → Optimizer searches for test files and testable components
-# → Asks: "Add tests for which component?" with actual component names
+claude "refactor the auth code"
 ```
 
-### Bypass Optimization
+The hook runs automatically and will ask clarifying questions if needed.
 
-Start your prompt with `!` to skip evaluation entirely:
-
+**Skip optimization** - Prefix with `!` when you want immediate execution:
 ```bash
 claude "! add dark mode"
-# → Executes immediately without subagent evaluation
 ```
 
-## Configuration
-
-### How Evaluation Works
-
-The hook **always** spawns a subagent to evaluate prompts (unless bypassed with `!`). The subagent uses its judgment and available tools to decide if optimization is needed - no hardcoded rules or thresholds.
-
-**Benefits:**
-- Adapts to context (what's clear in one project may be vague in another)
-- Learns from project patterns (CLAUDE.md, architecture, conventions)
-- No maintenance of brittle heuristics
-- Smarter decisions than word-count rules
-
-### Context-Aware Suggestions
-
-The key feature is **rich, specific suggestions** based on actual discovery:
-
-**Bad (generic):**
-```
-Question: "Which file should I work with?"
-Options: [File 1 | File 2 | File 3]
+**Slash commands** - Automatically bypass optimization (e.g., `/help`, `/commit`, custom commands):
+```bash
+claude "/help"
+claude "/commit"
 ```
 
-**Good (context-aware):**
-```
-Question: "Which map component should I fix?"
-Options:
-  - src/components/Map.tsx (main map component)
-  - src/components/MapMarkers.tsx (marker rendering)
-  - src/stores/mapStore.ts (map state management)
-```
-
-The subagent searches your codebase first, then offers actual findings as options.
-
-## Architecture
-
-### Subagent Benefits
-
-**Without Subagent:**
-```
-Main Session: 80k tokens used
-├─ Prompt exploration: 30k
-├─ User Q&A: 20k
-└─ Actual work: 30k
-Risk: Context limit, less room for complex tasks
-```
-
-**With Subagent:**
-```
-Main Session: 35k tokens used
-└─ Actual work: 35k (optimization details not included)
-
-Subagent Session: 40k tokens used (then discarded)
-├─ Project exploration: 20k
-├─ User Q&A: 15k
-└─ Prompt synthesis: 5k
-```
-
-### Evaluation Approach
-
-The hook **always** spawns a subagent (no pre-filtering). The subagent then:
-
-1. **Explores** - Uses judgment and tools to understand project context
-2. **Evaluates** - Decides if the prompt is clear enough to execute well
-3. **Optimizes (if needed)** - Asks targeted questions with context-specific options
-4. **Confirms** - Shows optimized prompt and asks user for approval
-5. **Returns** - Approved prompt or original (with confidence score)
-
-No prescriptive steps - the subagent adapts its approach to the specific prompt and project.
 
 ## Examples
 
-### Example 1: Vague Fix Request
+### Vague Request Gets Clarified
 
-```
-User: "fix the error"
-
-Subagent:
-1. Checks recent git changes → finds modified files
-2. Greps for error patterns → finds try/catch blocks
-3. Asks: "Which error?" with options:
-   - TypeError in src/components/Map.tsx (recent change)
-   - API timeout in src/services/osmService.ts (has error handling)
-   - [Other - paste error message]
-4. User selects Map.tsx
-5. Asks to paste error if available
-6. User: [pastes TypeError details]
-7. Subagent synthesizes and shows:
-   "Fix TypeError in src/components/Map.tsx line 42: Cannot read
-   property 'current' of undefined when accessing map.current. This
-   occurs during component initialization. Check useEffect dependencies."
-8. Asks: "Happy with this optimized prompt?"
-   Options: [Yes, use this | Needs adjustment | Use original instead]
-9. User: "Yes, use this"
-
-Optimized prompt sent to main Claude session.
-```
-
-### Example 2: Incomplete Feature Request
-
-```
-User: "add authentication"
-
-Subagent:
-1. Checks package.json → no auth libraries found
-2. Reads CLAUDE.md → no auth patterns documented
-3. Globs for auth files → none exist (new feature)
-4. Asks: "Which authentication method?"
-   Options: [OAuth 2.0 | JWT | Session cookies]
-5. User: "JWT"
-6. Asks: "What should it include?" (multi-select)
-   Options based on typical JWT patterns:
-   - Login/signup UI components
-   - Protected route wrapper
-   - Token refresh logic
-   - Auth state persistence
-7. User: [selects all]
-8. Subagent synthesizes and shows:
-   "Implement JWT authentication system:
-   - Add login/signup UI components
-   - Create auth context for token management
-   - Add protected route HOC/wrapper
-   - Implement token refresh logic
-   - Persist auth state to localStorage
-   Follow project patterns from CLAUDE.md for state management."
-9. Asks: "Happy with this optimized prompt?"
-   User: "Yes, use this"
-
-Optimized prompt sent to main Claude session.
-```
-
-### Example 3: Already Clear Prompt
-
-```
-User: "Fix the TypeScript error in src/components/Map.tsx line 127
-where mapboxgl.Map constructor is missing the container option"
-
-Subagent:
-1. Evaluates: Specific file, line number, exact error, clear fix
-2. Returns: Original prompt unchanged (high confidence)
-
-Main Claude: Proceeds immediately with fix
-```
-
-## Development
-
-### Project Structure
-
-```
-claude-prompt-optimizer/
-├── hooks/
-│   └── optimize-prompt.py          # Main hook script (102 lines)
-├── examples/
-│   ├── settings.json               # Example hook config
-│   └── project-claude-md.example   # Example CLAUDE.md
-├── tests/
-│   └── test-prompts.md             # Test cases
-├── README.md
-└── LICENSE
-```
-
-### Testing
-
-Test the hook with various prompt types:
-
+**You type:**
 ```bash
-# Test vague prompts
-python3 hooks/optimize-prompt.py < test-inputs/vague.json
-
-# Test detailed prompts
-python3 hooks/optimize-prompt.py < test-inputs/detailed.json
+claude "fix the error"
 ```
 
-See `tests/test-prompts.md` for comprehensive test cases.
+**Hook asks:**
+```
+Which error needs fixing?
+  ○ TypeError in src/components/Map.tsx (recent change)
+  ○ API timeout in src/services/osmService.ts
+  ○ Other (paste error message)
+```
 
-## Key Principle
+**You select Map.tsx and paste the error**
 
-**Don't be prescriptive** - Trust Claude to use its judgment and tools appropriately.
+**Hook shows optimized prompt:**
+```
+Fix TypeError in src/components/Map.tsx line 42: Cannot read property
+'current' of undefined when accessing map.current. Check useEffect dependencies.
+```
 
-**Do emphasize** - Questions must include rich, context-specific suggestions based on actual codebase discovery, not generic options.
+**You confirm, Claude executes with full context**
+
+---
+
+### Incomplete Feature Gets Scoped
+
+**You type:**
+```bash
+claude "add authentication"
+```
+
+**Hook asks:**
+```
+Which authentication method?
+  ○ OAuth 2.0
+  ○ JWT
+  ○ Session cookies
+
+What features? (select multiple)
+  ☑ Login/signup UI
+  ☑ Protected routes
+  ☑ Token refresh
+  ☑ State persistence
+```
+
+**Hook shows optimized prompt, you confirm, done**
+
+---
+
+### Clear Prompt Passes Through
+
+**You type:**
+```bash
+claude "Fix TypeScript error in src/components/Map.tsx line 127 where
+mapboxgl.Map constructor is missing the container option"
+```
+
+**Hook evaluates:** Already specific, proceeds immediately with no questions
+
+## FAQ
+
+**Does this work on all prompts?**
+Yes, unless you prefix with `!` to bypass. The hook uses AI judgment to decide if optimization is needed.
+
+**Will this slow down my workflow?**
+Only slightly during the question phase. The actual execution is faster because Claude has better context upfront.
+
+**Can I customize the behavior?**
+The hook adapts to each project automatically by exploring your codebase and CLAUDE.md file.
+
+**What if I don't like the optimized prompt?**
+You can select "Use original instead" when the hook asks for confirmation.
+
+**Will I get bombarded with questions?**
+No. The optimizer is designed to ask at most 1-2 questions and only when absolutely necessary. If it can infer context from exploring your project, it will do that instead of asking.
 
 ## License
 
 MIT
-
-## Credits
-
-Created from brainstorming session about improving Claude Code UX through intelligent prompt optimization with subagent architecture.
