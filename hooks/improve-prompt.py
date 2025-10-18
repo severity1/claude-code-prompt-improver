@@ -26,13 +26,7 @@ escaped_prompt = prompt.replace("\\", "\\\\").replace('"', '\\"')
 if prompt.startswith("*"):
     # User explicitly bypassed improvement - remove * prefix
     clean_prompt = prompt[1:].strip()
-    output = {
-        "hookSpecificOutput": {
-            "hookEventName": "UserPromptSubmit",
-            "additionalContext": clean_prompt,
-        }
-    }
-    print(json.dumps(output))
+    print(clean_prompt)
     sys.exit(0)
 
 if prompt.startswith("/"):
