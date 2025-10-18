@@ -2,6 +2,8 @@
 
 A UserPromptSubmit hook that enriches vague prompts before Claude Code executes them. Uses the AskUserQuestion tool (Claude Code 2.0.22+) for targeted clarifying questions.
 
+![Demo](assets/demo.gif)
+
 ## What It Does
 
 Intercepts prompts and wraps them with evaluation instructions. Claude then:
@@ -13,15 +15,25 @@ Intercepts prompts and wraps them with evaluation instructions. Claude then:
 
 ## How It Works
 
-```
-User: "fix the bug"
-         ↓
-Hook wraps with evaluation instructions (~250 tokens)
-         ↓
-Claude evaluates using conversation history
-         ↓
-Vague? → Explores project → Asks question(s) → Proceeds
-Clear? → Proceeds immediately
+```mermaid
+sequenceDiagram
+    participant User
+    participant Hook
+    participant Claude
+    participant Project
+
+    User->>Hook: "fix the bug"
+    Hook->>Claude: Wrapped with evaluation instructions (~250 tokens)
+    Claude->>Claude: Evaluate using conversation history
+    alt Vague prompt
+        Claude->>Project: Explore codebase
+        Project-->>Claude: Context
+        Claude->>User: Ask targeted question(s)
+        User->>Claude: Answer
+        Claude->>Claude: Proceed with enriched prompt
+    else Clear prompt
+        Claude->>Claude: Proceed immediately
+    end
 ```
 
 ## Installation
@@ -68,8 +80,6 @@ claude "* add dark mode"                    # * = skip evaluation
 claude "/help"                              # / = slash commands bypass
 claude "# remember to use rg over grep"     # # = memorize bypass
 ```
-
-## Example
 
 **Vague prompt:**
 ```bash
