@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Claude Code Prompt Optimizer Hook
+Claude Code Prompt Improver Hook
 Intercepts user prompts and evaluates if they need enrichment before execution.
 Uses main session context for intelligent, non-pedantic evaluation.
 """
@@ -24,7 +24,7 @@ escaped_prompt = prompt.replace("\\", "\\\\").replace('"', '\\"')
 # 2. Slash commands (built-in or custom)
 # 3. Memorize feature (# prefix)
 if prompt.startswith("*"):
-    # User explicitly bypassed optimization - remove * prefix
+    # User explicitly bypassed improvement - remove * prefix
     clean_prompt = prompt[1:].strip()
     output = {
         "hookSpecificOutput": {
@@ -45,7 +45,7 @@ if prompt.startswith("#"):
     print(prompt)
     sys.exit(0)
 
-# Build the optimization wrapper
+# Build the improvement wrapper
 wrapped_prompt = f"""PROMPT EVALUATION
 
 Original user request: "{escaped_prompt}"
@@ -58,7 +58,7 @@ PROCEED IMMEDIATELY if:
 - Detailed/specific OR you have context from conversation OR conversational (not action) OR can infer intent
 
 ONLY ASK if genuinely vague (e.g., "fix the bug" with no context):
-- Preface question with brief note mentioning "Prompt Optimizer Hook" is seeking clarification
+- Preface question with brief note mentioning "Prompt Improver Hook" is seeking clarification
 - Use AskUserQuestion tool
 - Max 1-2 questions with context-aware options from project exploration
 - Then proceed with enriched prompt

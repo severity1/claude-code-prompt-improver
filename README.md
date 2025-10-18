@@ -1,4 +1,4 @@
-# Claude Code Prompt Optimizer
+# Claude Code Prompt Improver
 
 A UserPromptSubmit hook that enriches vague prompts before Claude Code executes them.
 
@@ -28,8 +28,8 @@ Clear? → Proceeds immediately
 
 **1. Copy the hook:**
 ```bash
-cp hooks/optimize-prompt.py ~/.claude/hooks/
-chmod +x ~/.claude/hooks/optimize-prompt.py
+cp hooks/improve-prompt.py ~/.claude/hooks/
+chmod +x ~/.claude/hooks/improve-prompt.py
 ```
 
 **2. Update `~/.claude/settings.json`:**
@@ -41,7 +41,7 @@ chmod +x ~/.claude/hooks/optimize-prompt.py
         "hooks": [
           {
             "type": "command",
-            "command": "python3 ~/.claude/hooks/optimize-prompt.py"
+            "command": "python3 ~/.claude/hooks/improve-prompt.py"
           }
         ]
       }
@@ -101,7 +101,7 @@ Claude proceeds immediately without questions.
 
 ## Architecture
 
-**Hook (optimize-prompt.py):**
+**Hook (improve-prompt.py):**
 - Intercepts via stdin/stdout JSON
 - Bypasses: `*`, `/`, `#` prefixes
 - Wraps other prompts with evaluation instructions (~250 tokens)
