@@ -52,9 +52,12 @@ PROCEED IMMEDIATELY if:
 - Detailed/specific OR you have context from conversation OR conversational (not action) OR can infer intent
 
 ONLY ASK if genuinely vague (e.g., "fix the bug" with no context):
-- Preface question with brief note mentioning "Prompt Improver Hook" is seeking clarification
-- Use AskUserQuestion tool
-- Max 1-2 questions with context-aware options from project exploration
+- Preface with brief note mentioning "Prompt Improver Hook" is seeking clarification
+- Use TodoWrite to track: "Research project context to ground clarifying questions"
+- Mark it in_progress and research using available tools (search, explore codebase, check external docs/sources)
+- Ground your questions in what you actually find, not generic guesses
+- Mark research todo as completed
+- Use AskUserQuestion tool with max 1-2 questions offering specific options from your research
 - Then proceed with enriched prompt
 
 Don't announce evaluation - just proceed or ask.
