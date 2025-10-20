@@ -22,6 +22,9 @@ All notable changes to the Claude Code Prompt Improver project.
 - More flexible and adaptive to different types of vague prompts
 - Better grounding of clarifying questions in actual project context
 - Clearer separation between research and questioning phases
+- Numbered steps in Phase 1 and Phase 2 for better structure and clarity
+- Preface moved to Phase 1 with context requirement explaining why clarification is needed
+- Added specific examples for clarification reasons (ambiguous scope, missing context, unclear requirements)
 
 ## [0.2.0] - 2025-01-20
 

@@ -52,17 +52,19 @@ PROCEED IMMEDIATELY if:
 - Detailed/specific OR you have sufficient context OR can infer intent
 
 ONLY ASK if genuinely vague (e.g., "fix the bug" with no context):
-- Preface with brief note mentioning "Prompt Improver Hook" is seeking clarification
-- Research phase:
-  - Create research plan with TodoWrite based on what needs clarification
-  - Execute research (codebase exploration, web search, docs, etc. as planned)
-  - Use findings to formulate grounded questions (not generic guesses)
-  - Mark completed
-- Question phase:
-  - Use AskUserQuestion tool with max 1-6 questions offering specific options from your research
-  - Use the answers to execute the original user request
+- PHASE 1 - RESEARCH (MANDATORY):
+  1. Preface with brief note: "Prompt Improver Hook is seeking clarification because [specific reason: ambiguous scope/missing context/unclear requirements/etc]"
+  2. Create research plan with TodoWrite based on what needs clarification
+  3. Execute research (codebase exploration, web search, docs, etc. as planned)
+  4. Use findings to formulate grounded questions (not generic guesses)
+  5. Mark completed
+- PHASE 2 - ASK (ONLY AFTER PHASE 1):
+  1. Use AskUserQuestion tool with max 1-6 questions offering specific options from your research
+  2. Use the answers to execute the original user request
 
-Don't announce evaluation - just proceed or ask.
+CRITICAL:
+- Never skip Phase 1. Research before asking.
+- Don't announce evaluation - just proceed or ask.
 """
 
 print(wrapped_prompt)
