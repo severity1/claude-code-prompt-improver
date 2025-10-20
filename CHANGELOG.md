@@ -25,6 +25,12 @@ All notable changes to the Claude Code Prompt Improver project.
 - Numbered steps in Phase 1 and Phase 2 for better structure and clarity
 - Preface moved to Phase 1 with context requirement explaining why clarification is needed
 - Added specific examples for clarification reasons (ambiguous scope, missing context, unclear requirements)
+- Critical rules repositioned under "ONLY ASK" section for better visibility during vague prompt evaluation
+- Added "Do not rely on base knowledge" rule to prevent pattern-matching from training instead of research
+- Step 2 clarified: "Research WHAT NEEDS CLARIFICATION, not just the project" with emphasis on online research for common approaches/best practices
+- Step 3 simplified to "Execute research" (removed redundant warning)
+- Step 4 explicitly requires using "research findings (not your training)" to prevent premature assumptions
+- Specified recommended tools: Task/Explore for codebase, WebSearch for online research, Read/Grep as needed
 
 ## [0.2.0] - 2025-01-20
 

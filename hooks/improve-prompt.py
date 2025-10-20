@@ -46,25 +46,26 @@ Original user request: "{escaped_prompt}"
 
 EVALUATE: Is this prompt clear enough to execute, or does it need enrichment?
 
-Trust user intent by default. Check conversation history before doing research.
-
 PROCEED IMMEDIATELY if:
 - Detailed/specific OR you have sufficient context OR can infer intent
 
 ONLY ASK if genuinely vague (e.g., "fix the bug" with no context):
-- PHASE 1 - RESEARCH (MANDATORY):
+- CRITICAL (NON-NEGOTIABLE) RULES:
+  - Trust user intent by default. Check conversation history before doing research.
+  - Do not rely on base knowledge.
+  - Never skip Phase 1. Research before asking.
+  - Don't announce evaluation - just proceed or ask.
+
+- PHASE 1 - RESEARCH (DO NOT SKIP):
   1. Preface with brief note: "Prompt Improver Hook is seeking clarification because [specific reason: ambiguous scope/missing context/unclear requirements/etc]"
-  2. Create research plan with TodoWrite based on what needs clarification
-  3. Execute research (codebase exploration, web search, docs, etc. as planned)
-  4. Use findings to formulate grounded questions (not generic guesses)
+  2. Create research plan with TodoWrite: Ask yourself "What do I need to research to clarify this vague request?" Research WHAT NEEDS CLARIFICATION, not just the project. Use available tools: Task/Explore for codebase, WebSearch for online research (current info, common approaches, best practices, typical architectures), Read/Grep as needed
+  3. Execute research
+  4. Use research findings (not your training) to formulate grounded questions with specific options
   5. Mark completed
+
 - PHASE 2 - ASK (ONLY AFTER PHASE 1):
   1. Use AskUserQuestion tool with max 1-6 questions offering specific options from your research
   2. Use the answers to execute the original user request
-
-CRITICAL:
-- Never skip Phase 1. Research before asking.
-- Don't announce evaluation - just proceed or ask.
 """
 
 print(wrapped_prompt)
