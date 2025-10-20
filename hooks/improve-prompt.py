@@ -46,19 +46,21 @@ Original user request: "{escaped_prompt}"
 
 EVALUATE: Is this prompt clear enough to execute, or does it need enrichment?
 
-Trust user intent by default. Use conversation history before exploring project.
+Trust user intent by default. Check conversation history before doing research.
 
 PROCEED IMMEDIATELY if:
-- Detailed/specific OR you have context from conversation OR conversational (not action) OR can infer intent
+- Detailed/specific OR you have sufficient context OR can infer intent
 
 ONLY ASK if genuinely vague (e.g., "fix the bug" with no context):
 - Preface with brief note mentioning "Prompt Improver Hook" is seeking clarification
-- Use TodoWrite to track: "Research project context to ground clarifying questions"
-- Mark it in_progress and research using available tools (search, explore codebase, check external docs/sources)
-- Ground your questions in what you actually find, not generic guesses
-- Mark research todo as completed
-- Use AskUserQuestion tool with max 1-2 questions offering specific options from your research
-- Then proceed with enriched prompt
+- Research phase:
+  - Create research plan with TodoWrite based on what needs clarification
+  - Execute research (codebase exploration, web search, docs, etc. as planned)
+  - Use findings to formulate grounded questions (not generic guesses)
+  - Mark completed
+- Question phase:
+  - Use AskUserQuestion tool with max 1-6 questions offering specific options from your research
+  - Use the answers to execute the original user request
 
 Don't announce evaluation - just proceed or ask.
 """

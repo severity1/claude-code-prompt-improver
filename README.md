@@ -8,8 +8,8 @@ A UserPromptSubmit hook that enriches vague prompts before Claude Code executes 
 
 Intercepts prompts and wraps them with evaluation instructions. Claude then:
 - Checks if the prompt is clear using conversation history
-- For vague prompts: asks 1-2 targeted questions with context from your codebase
-- Proceeds with original or enriched prompt
+- For vague prompts: creates a research plan, gathers context, asks 1-6 grounded questions
+- Proceeds with original request using the clarification
 
 **Result:** Better outcomes on the first try, without back-and-forth.
 
@@ -23,14 +23,15 @@ sequenceDiagram
     participant Project
 
     User->>Hook: "fix the bug"
-    Hook->>Claude: Wrapped with evaluation instructions (~250 tokens)
+    Hook->>Claude: Wrapped with evaluation instructions (~300 tokens)
     Claude->>Claude: Evaluate using conversation history
     alt Vague prompt
-        Claude->>Project: Explore codebase
+        Claude->>Claude: Create research plan (TodoWrite)
+        Claude->>Project: Execute research (codebase, web, docs)
         Project-->>Claude: Context
-        Claude->>User: Ask targeted question(s)
+        Claude->>User: Ask grounded questions (1-6)
         User->>Claude: Answer
-        Claude->>Claude: Proceed with enriched prompt
+        Claude->>Claude: Execute original request with answers
     else Clear prompt
         Claude->>Claude: Proceed immediately
     end
@@ -108,7 +109,7 @@ Claude proceeds immediately without questions.
 - **Rarely intervene** - Most prompts pass through unchanged
 - **Trust user intent** - Only ask when genuinely unclear
 - **Use conversation history** - Avoid redundant exploration
-- **Max 1-2 questions** - No interrogations
+- **Max 1-6 questions** - Enough for complex scenarios, still focused
 - **Transparent** - Evaluation visible in conversation
 
 ## Architecture
@@ -116,13 +117,14 @@ Claude proceeds immediately without questions.
 **Hook (improve-prompt.py):**
 - Intercepts via stdin/stdout JSON
 - Bypasses: `*`, `/`, `#` prefixes
-- Wraps other prompts with evaluation instructions (~250 tokens)
+- Wraps other prompts with evaluation instructions (~300 tokens)
 
 **Main Claude Session:**
 - Evaluates using conversation history first
-- Explores project only if needed
-- Asks minimal questions via AskUserQuestion tool
-- Proceeds with original or enriched prompt
+- For vague prompts: creates dynamic research plan (TodoWrite)
+- Executes research using appropriate methods (codebase, web, docs, etc.)
+- Asks grounded questions (max 1-6) via AskUserQuestion tool
+- Executes original request using the answers
 
 **Why main session (not subagent)?**
 - Has conversation history
@@ -132,8 +134,8 @@ Claude proceeds immediately without questions.
 
 ## Token Overhead
 
-- **Per wrapped prompt:** ~250-280 tokens
-- **30-message session:** ~7.5k tokens (~4% of 200k context)
+- **Per wrapped prompt:** ~300 tokens
+- **30-message session:** ~9k tokens (~4.5% of 200k context)
 - **Trade-off:** Small overhead for better first-attempt results
 
 ## FAQ
@@ -145,10 +147,10 @@ Yes, unless you use bypass prefixes (`*`, `/`, `#`).
 Only slightly when it asks questions. Faster overall due to better context.
 
 **Will I get bombarded with questions?**
-No. It rarely intervenes, passes through most prompts, and asks max 1-2 questions.
+No. It rarely intervenes, passes through most prompts, and asks max 1-6 questions.
 
 **Can I customize behavior?**
-It adapts automatically using conversation history, codebase exploration, and CLAUDE.md.
+It adapts automatically using conversation history, dynamic research planning, and CLAUDE.md.
 
 **What if I don't want improvement?**
 Use `*` prefix: `claude "* your prompt here"`
