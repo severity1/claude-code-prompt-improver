@@ -2,7 +2,7 @@
 
 All notable changes to the Claude Code Prompt Improver project.
 
-## [Unreleased]
+## [0.3.0] - 2025-01-20
 
 ### Added
 - Dynamic research planning based on vague prompts via TodoWrite
