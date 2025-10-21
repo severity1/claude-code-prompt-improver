@@ -1,0 +1,13 @@
+{
+  "name": "prompt-improver",
+  "description": "Enriches vague prompts with research-based clarifying questions before Claude Code executes them",
+  "version": "0.3.0",
+  "author": {
+    "name": "severity1",
+    "url": "https://github.com/severity1"
+  },
+  "homepage": "https://github.com/severity1/claude-code-prompt-improver",
+  "repository": "https://github.com/severity1/claude-code-prompt-improver",
+  "license": "MIT",
+  "keywords": ["prompt", "workflow", "clarification", "hook", "improvement"]
+}
