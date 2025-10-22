@@ -155,6 +155,25 @@ It adapts automatically using conversation history, dynamic research planning, a
 **What if I don't want improvement?**
 Use `*` prefix: `claude "* your prompt here"`
 
+## Skill Builder
+
+Want to create your own hooks? Use the **Skill Builder** tool:
+
+```bash
+./skill-builder.py list                    # List available templates
+./skill-builder.py info wrapper            # Get template details
+./skill-builder.py create simple           # Create a hook interactively
+```
+
+**Available templates:**
+- `simple` - Basic pass-through hook with logging
+- `wrapper` - Add instructions to prompts (like improve-prompt.py)
+- `validator` - Validate prompts against rules
+- `context-injector` - Automatically add project context
+- `conditional` - Route prompts based on patterns
+
+See [SKILL_BUILDER.md](SKILL_BUILDER.md) for full documentation and examples.
+
 ## License
 
 MIT

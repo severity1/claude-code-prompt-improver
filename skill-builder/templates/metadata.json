@@ -1,0 +1,77 @@
+{
+  "simple": {
+    "description": "Basic pass-through hook that logs prompts",
+    "use_case": "Starting point for custom hooks, debugging, or logging",
+    "features": [
+      "Reads JSON from stdin",
+      "Logs prompts to a file",
+      "Passes prompt through unchanged",
+      "Error handling"
+    ],
+    "customization": [
+      "Log file path",
+      "Log format",
+      "Additional processing"
+    ]
+  },
+  "wrapper": {
+    "description": "Wraps prompts with additional instructions or context",
+    "use_case": "Add systematic instructions, guidelines, or context to all prompts",
+    "features": [
+      "Bypass conditions (*, /, # prefixes)",
+      "Customizable wrapper instructions",
+      "Safe string escaping",
+      "Prefix-based routing"
+    ],
+    "customization": [
+      "Wrapper instructions",
+      "Bypass conditions",
+      "Prefix handling"
+    ]
+  },
+  "validator": {
+    "description": "Validates prompts against rules before execution",
+    "use_case": "Enforce prompt standards, block inappropriate content, or require certain patterns",
+    "features": [
+      "Configurable validation rules",
+      "Error messages for invalid prompts",
+      "Bypass for slash commands",
+      "Extensible rule system"
+    ],
+    "customization": [
+      "Validation rules",
+      "Error messages",
+      "Bypass conditions"
+    ]
+  },
+  "context-injector": {
+    "description": "Automatically injects contextual information into prompts",
+    "use_case": "Add project info, environment details, or external data to prompts",
+    "features": [
+      "Dynamic context loading",
+      "File or command-based context",
+      "Context caching",
+      "Seamless integration"
+    ],
+    "customization": [
+      "Context source",
+      "Context format",
+      "Cache duration"
+    ]
+  },
+  "conditional": {
+    "description": "Routes prompts based on conditions to different behaviors",
+    "use_case": "Apply different rules for different types of prompts or users",
+    "features": [
+      "Pattern matching",
+      "Multiple routing rules",
+      "Fallback behavior",
+      "Flexible conditions"
+    ],
+    "customization": [
+      "Routing rules",
+      "Condition patterns",
+      "Default behavior"
+    ]
+  }
+}
