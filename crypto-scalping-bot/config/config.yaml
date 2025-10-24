@@ -1,0 +1,58 @@
+# Trading Bot Configuration
+
+exchange:
+  name: okx
+  sandbox: false
+  testnet: false
+
+trading:
+  symbol: BTC/USDT:USDT  # Perpetual futures contract
+  timeframe: 1m          # 1-minute candles for scalping
+  initial_capital: 10000 # Starting capital in USDT
+
+  # Scalping parameters
+  max_position_size: 0.1   # Max 10% of capital per trade
+  leverage: 5              # Leverage for perp contracts
+  stop_loss_pct: 0.005     # 0.5% stop loss
+  take_profit_pct: 0.01    # 1% take profit
+
+  # Risk management
+  max_daily_loss: 0.05     # Stop trading if down 5% for the day
+  max_open_positions: 3
+
+model:
+  type: lstm
+  lookback_periods: 60     # Use last 60 minutes of data
+
+  # LSTM architecture
+  lstm_units: [64, 32]     # Two LSTM layers
+  dropout_rate: 0.2
+
+  # Training
+  epochs: 30
+  batch_size: 32
+  validation_split: 0.2
+  learning_rate: 0.001
+
+  # Features to use
+  features:
+    - close
+    - volume
+    - rsi_14
+    - macd
+    - bb_upper
+    - bb_lower
+
+backtesting:
+  start_date: "2024-01-01"
+  end_date: "2024-03-31"   # 3 months of data for faster testing
+  commission: 0.0004       # 0.04% taker fee on OKX
+  slippage: 0.0001         # 0.01% slippage estimate
+
+indicators:
+  rsi_period: 14
+  macd_fast: 12
+  macd_slow: 26
+  macd_signal: 9
+  bb_period: 20
+  bb_std: 2

@@ -1,0 +1,28 @@
+# Core trading libraries
+ccxt>=4.0.0                    # Unified API for OKX and other exchanges
+backtesting>=0.3.3             # Backtesting.py framework
+
+# Deep Learning
+tensorflow>=2.15.0             # LSTM neural networks
+scikit-learn>=1.3.0            # Data preprocessing and metrics
+
+# Data manipulation
+pandas>=2.1.0                  # Data handling
+numpy>=1.24.0                  # Numerical operations
+ta>=0.11.0                     # Technical analysis indicators
+
+# Visualization
+matplotlib>=3.8.0              # Plotting
+plotly>=5.17.0                 # Interactive charts
+seaborn>=0.13.0                # Statistical visualization
+
+# Utilities
+python-dotenv>=1.0.0           # Environment variables
+pyyaml>=6.0                    # Config file handling
+requests>=2.31.0               # HTTP requests
+websocket-client>=1.6.0        # Real-time data streaming
+
+# Development
+jupyter>=1.0.0                 # Notebooks for experimentation
+pytest>=7.4.0                  # Testing
+black>=23.0.0                  # Code formatting
