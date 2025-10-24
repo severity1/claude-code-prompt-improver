@@ -11,12 +11,14 @@ import yaml
 import pickle
 from pathlib import Path
 import matplotlib.pyplot as plt
+from typing import Tuple, Optional, Dict, Any
+from numpy.typing import NDArray
 
 
 class LSTMPricePredictor:
     """LSTM neural network for predicting crypto prices."""
 
-    def __init__(self, config_path='config/config.yaml'):
+    def __init__(self, config_path: str = 'config/config.yaml') -> None:
         """Initialize the LSTM model with configuration."""
         with open(config_path, 'r') as f:
             self.config = yaml.safe_load(f)
@@ -24,7 +26,7 @@ class LSTMPricePredictor:
         self.model = None
         self.history = None
 
-    def build_model(self, input_shape):
+    def build_model(self, input_shape: Tuple[int, int]) -> keras.Model:
         """
         Build LSTM model architecture.
 
@@ -72,7 +74,7 @@ class LSTMPricePredictor:
 
         return model
 
-    def train(self, X_train, y_train, X_val=None, y_val=None):
+    def train(self, X_train: NDArray, y_train: NDArray, X_val: Optional[NDArray] = None, y_val: Optional[NDArray] = None) -> keras.callbacks.History:
         """
         Train the LSTM model.
 
@@ -135,7 +137,7 @@ class LSTMPricePredictor:
 
         return self.history
 
-    def predict(self, X):
+    def predict(self, X: NDArray) -> NDArray:
         """
         Make predictions with the trained model.
 
@@ -150,7 +152,7 @@ class LSTMPricePredictor:
 
         return self.model.predict(X, verbose=0)
 
-    def evaluate(self, X_test, y_test):
+    def evaluate(self, X_test: NDArray, y_test: NDArray) -> Dict[str, float]:
         """
         Evaluate model performance on test data.
 
@@ -185,7 +187,7 @@ class LSTMPricePredictor:
 
         return metrics
 
-    def plot_training_history(self, save_path='models/training_history.png'):
+    def plot_training_history(self, save_path: str = 'models/training_history.png') -> None:
         """Plot training and validation loss."""
         if self.history is None:
             print("No training history available.")
@@ -218,19 +220,19 @@ class LSTMPricePredictor:
         print(f"Training history plot saved to {save_path}")
         plt.close()
 
-    def save_model(self, filepath='models/lstm_model.keras'):
+    def save_model(self, filepath: str = 'models/lstm_model.keras') -> None:
         """Save the trained model."""
         Path(filepath).parent.mkdir(exist_ok=True)
         self.model.save(filepath)
         print(f"Model saved to {filepath}")
 
-    def load_model(self, filepath='models/lstm_model.keras'):
+    def load_model(self, filepath: str = 'models/lstm_model.keras') -> None:
         """Load a trained model."""
         self.model = keras.models.load_model(filepath)
         print(f"Model loaded from {filepath}")
 
 
-def main():
+def main() -> None:
     """Train the LSTM model."""
     import sys
     from pathlib import Path

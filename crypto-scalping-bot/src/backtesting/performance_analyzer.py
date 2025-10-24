@@ -8,12 +8,13 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from pathlib import Path
 import json
+from typing import Optional, Dict, Any
 
 
 class PerformanceAnalyzer:
     """Analyze and visualize trading performance."""
 
-    def __init__(self, trades_df=None, equity_curve=None):
+    def __init__(self, trades_df: Optional[pd.DataFrame] = None, equity_curve: Optional[pd.Series] = None) -> None:
         """
         Initialize analyzer with trade data.
 
@@ -24,7 +25,7 @@ class PerformanceAnalyzer:
         self.trades_df = trades_df
         self.equity_curve = equity_curve
 
-    def calculate_metrics(self, initial_capital=10000):
+    def calculate_metrics(self, initial_capital: float = 10000) -> Dict[str, Any]:
         """
         Calculate comprehensive performance metrics.
 
@@ -114,7 +115,7 @@ class PerformanceAnalyzer:
 
         return metrics
 
-    def plot_equity_curve(self, save_path='results/equity_curve.png'):
+    def plot_equity_curve(self, save_path: str = 'results/equity_curve.png') -> None:
         """Plot equity curve over time."""
         if self.equity_curve is None:
             print("No equity curve data available.")
@@ -149,7 +150,7 @@ class PerformanceAnalyzer:
         print(f"Equity curve plot saved to {save_path}")
         plt.close()
 
-    def plot_trade_analysis(self, save_path='results/trade_analysis.png'):
+    def plot_trade_analysis(self, save_path: str = 'results/trade_analysis.png') -> None:
         """Plot trade distribution and analysis."""
         if self.trades_df is None or len(self.trades_df) == 0:
             print("No trade data available.")
@@ -213,7 +214,7 @@ class PerformanceAnalyzer:
         print(f"Trade analysis plot saved to {save_path}")
         plt.close()
 
-    def plot_returns_distribution(self, save_path='results/returns_distribution.png'):
+    def plot_returns_distribution(self, save_path: str = 'results/returns_distribution.png') -> None:
         """Plot returns distribution and statistics."""
         if self.trades_df is None or len(self.trades_df) == 0:
             print("No trade data available.")
@@ -253,7 +254,7 @@ class PerformanceAnalyzer:
         print(f"Returns distribution plot saved to {save_path}")
         plt.close()
 
-    def generate_report(self, save_path='results/performance_report.json', initial_capital=10000):
+    def generate_report(self, save_path: str = 'results/performance_report.json', initial_capital: float = 10000) -> Dict[str, Any]:
         """Generate comprehensive performance report."""
         metrics = self.calculate_metrics(initial_capital)
 
@@ -290,7 +291,7 @@ class PerformanceAnalyzer:
         return metrics
 
 
-def main():
+def main() -> None:
     """Generate performance analysis from backtest results."""
     from pathlib import Path
     import sys

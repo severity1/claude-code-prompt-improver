@@ -11,12 +11,14 @@ import yaml
 from sklearn.preprocessing import MinMaxScaler
 import pickle
 from pathlib import Path
+from typing import Tuple, List
+from numpy.typing import NDArray
 
 
 class DataPreprocessor:
     """Preprocess data and engineer features for the LSTM model."""
 
-    def __init__(self, config_path='config/config.yaml'):
+    def __init__(self, config_path: str = 'config/config.yaml') -> None:
         """Initialize preprocessor with configuration."""
         with open(config_path, 'r') as f:
             self.config = yaml.safe_load(f)
@@ -24,7 +26,7 @@ class DataPreprocessor:
         self.scaler = MinMaxScaler()
         self.feature_columns = []
 
-    def add_technical_indicators(self, df):
+    def add_technical_indicators(self, df: pd.DataFrame) -> pd.DataFrame:
         """
         Add technical indicators to the dataframe.
 
@@ -86,7 +88,7 @@ class DataPreprocessor:
 
         return df
 
-    def create_sequences(self, df, lookback=60, target_col='close'):
+    def create_sequences(self, df: pd.DataFrame, lookback: int = 60, target_col: str = 'close') -> Tuple[NDArray, NDArray, pd.DatetimeIndex]:
         """
         Create sequences for LSTM training.
 
@@ -133,7 +135,7 @@ class DataPreprocessor:
 
         return X, y, df.index[lookback:]
 
-    def inverse_transform_predictions(self, predictions, feature_idx=0):
+    def inverse_transform_predictions(self, predictions: NDArray, feature_idx: int = 0) -> NDArray:
         """
         Convert scaled predictions back to original scale.
 
@@ -154,21 +156,21 @@ class DataPreprocessor:
 
         return unscaled[:, feature_idx]
 
-    def save_scaler(self, filepath='data/scaler.pkl'):
+    def save_scaler(self, filepath: str = 'data/scaler.pkl') -> None:
         """Save the fitted scaler for later use."""
         Path(filepath).parent.mkdir(exist_ok=True)
         with open(filepath, 'wb') as f:
             pickle.dump(self.scaler, f)
         print(f"Scaler saved to {filepath}")
 
-    def load_scaler(self, filepath='data/scaler.pkl'):
+    def load_scaler(self, filepath: str = 'data/scaler.pkl') -> None:
         """Load a previously fitted scaler."""
         with open(filepath, 'rb') as f:
             self.scaler = pickle.load(f)
         print(f"Scaler loaded from {filepath}")
 
 
-def main():
+def main() -> None:
     """Test preprocessing pipeline."""
     import sys
     from pathlib import Path

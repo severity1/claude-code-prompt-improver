@@ -8,12 +8,13 @@ import yaml
 import os
 from datetime import datetime, timedelta
 from pathlib import Path
+from typing import Optional
 
 
 class OKXDataFetcher:
     """Fetch and save historical data from OKX."""
 
-    def __init__(self, config_path='config/config.yaml'):
+    def __init__(self, config_path: str = 'config/config.yaml') -> None:
         """Initialize the data fetcher with configuration."""
         with open(config_path, 'r') as f:
             self.config = yaml.safe_load(f)
@@ -29,7 +30,7 @@ class OKXDataFetcher:
         self.symbol = self.config['trading']['symbol']
         self.timeframe = self.config['trading']['timeframe']
 
-    def fetch_ohlcv(self, start_date, end_date=None, limit=1000):
+    def fetch_ohlcv(self, start_date: str, end_date: Optional[str] = None, limit: int = 1000) -> pd.DataFrame:
         """
         Fetch OHLCV data for the specified date range.
 
@@ -100,7 +101,7 @@ class OKXDataFetcher:
 
         return df
 
-    def save_data(self, df, filename=None):
+    def save_data(self, df: pd.DataFrame, filename: Optional[str] = None) -> Path:
         """
         Save data to CSV file.
 
@@ -126,7 +127,7 @@ class OKXDataFetcher:
         return filepath
 
 
-def main():
+def main() -> None:
     """Main execution function."""
     # Load config to get date range
     with open('config/config.yaml', 'r') as f:

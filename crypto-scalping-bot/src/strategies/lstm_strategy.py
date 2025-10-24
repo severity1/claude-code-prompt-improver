@@ -7,6 +7,8 @@ import pandas as pd
 from backtesting import Strategy
 from backtesting.lib import crossover
 import yaml
+from typing import Optional
+from numpy.typing import NDArray
 
 
 class LSTMScalpingStrategy(Strategy):
@@ -28,7 +30,7 @@ class LSTMScalpingStrategy(Strategy):
     take_profit_pct = 0.01       # 1% take profit
     position_size = 0.95         # Use 95% of available equity
 
-    def init(self):
+    def init(self) -> None:
         """Initialize strategy with indicators and predictions."""
         # Get predictions from the dataframe
         # These should be added to the data before backtesting
@@ -45,7 +47,7 @@ class LSTMScalpingStrategy(Strategy):
         self.macd = self.data.MACD
         self.macd_signal = self.data.MACD_Signal
 
-    def next(self):
+    def next(self) -> None:
         """Execute strategy logic on each bar."""
         # Skip if not enough data
         if len(self.data) < 2:
@@ -69,7 +71,7 @@ class LSTMScalpingStrategy(Strategy):
         elif self._should_go_short(current_prediction, current_rsi, current_macd, current_macd_signal):
             self._open_short()
 
-    def _should_go_long(self, prediction, rsi, macd, macd_signal):
+    def _should_go_long(self, prediction: float, rsi: float, macd: float, macd_signal: float) -> bool:
         """
         Determine if we should open a long position.
 
@@ -84,7 +86,7 @@ class LSTMScalpingStrategy(Strategy):
 
         return prediction_bullish and rsi_ok and macd_bullish
 
-    def _should_go_short(self, prediction, rsi, macd, macd_signal):
+    def _should_go_short(self, prediction: float, rsi: float, macd: float, macd_signal: float) -> bool:
         """
         Determine if we should open a short position.
 
@@ -99,7 +101,7 @@ class LSTMScalpingStrategy(Strategy):
 
         return prediction_bearish and rsi_ok and macd_bearish
 
-    def _open_long(self):
+    def _open_long(self) -> None:
         """Open a long position with risk management."""
         # Calculate position size based on available equity
         size = self.position_size
@@ -111,7 +113,7 @@ class LSTMScalpingStrategy(Strategy):
 
         self.buy(size=size, sl=sl_price, tp=tp_price)
 
-    def _open_short(self):
+    def _open_short(self) -> None:
         """Open a short position with risk management."""
         # Calculate position size based on available equity
         size = self.position_size
@@ -123,7 +125,7 @@ class LSTMScalpingStrategy(Strategy):
 
         self.sell(size=size, sl=sl_price, tp=tp_price)
 
-    def _manage_position(self):
+    def _manage_position(self) -> None:
         """
         Manage existing position with trailing stop and exit conditions.
         """

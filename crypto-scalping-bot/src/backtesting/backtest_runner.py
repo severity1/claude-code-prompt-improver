@@ -8,6 +8,8 @@ from backtesting import Backtest
 from pathlib import Path
 import yaml
 import sys
+from typing import Type, Dict, Any, Optional
+from numpy.typing import NDArray
 
 sys.path.append(str(Path(__file__).parent.parent))
 
@@ -19,7 +21,7 @@ from data.preprocess import DataPreprocessor
 class BacktestRunner:
     """Run and manage backtests for the trading bot."""
 
-    def __init__(self, config_path='config/config.yaml'):
+    def __init__(self, config_path: str = 'config/config.yaml') -> None:
         """Initialize backtest runner with configuration."""
         with open(config_path, 'r') as f:
             self.config = yaml.safe_load(f)
@@ -27,7 +29,7 @@ class BacktestRunner:
         self.results = None
         self.bt = None
 
-    def prepare_data_for_backtest(self, df, predictions):
+    def prepare_data_for_backtest(self, df: pd.DataFrame, predictions: NDArray) -> pd.DataFrame:
         """
         Prepare data in the format required by backtesting.py.
 
@@ -68,7 +70,7 @@ class BacktestRunner:
 
         return bt_data
 
-    def run_backtest(self, data, strategy_class=LSTMScalpingStrategy, cash=10000, commission=0.0004):
+    def run_backtest(self, data: pd.DataFrame, strategy_class: Type = LSTMScalpingStrategy, cash: float = 10000, commission: float = 0.0004) -> pd.Series:
         """
         Run a backtest with the specified strategy.
 
@@ -100,7 +102,7 @@ class BacktestRunner:
 
         return self.results
 
-    def print_results(self):
+    def print_results(self) -> None:
         """Print backtest results in a formatted way."""
         if self.results is None:
             print("No results available. Run a backtest first.")
@@ -131,7 +133,7 @@ class BacktestRunner:
 
         print("\n" + "=" * 60)
 
-    def plot_results(self, save_path='results/backtest_plot.html'):
+    def plot_results(self, save_path: str = 'results/backtest_plot.html') -> None:
         """Generate interactive plot of backtest results."""
         if self.bt is None:
             print("No backtest available. Run a backtest first.")
@@ -141,7 +143,7 @@ class BacktestRunner:
         self.bt.plot(filename=save_path, open_browser=False)
         print(f"\nBacktest plot saved to {save_path}")
 
-    def optimize_strategy(self, data, cash=10000, commission=0.0004):
+    def optimize_strategy(self, data: pd.DataFrame, cash: float = 10000, commission: float = 0.0004) -> pd.Series:
         """
         Optimize strategy parameters using grid search.
 
@@ -180,7 +182,7 @@ class BacktestRunner:
         return optimization_results
 
 
-def main():
+def main() -> None:
     """Run the full backtest pipeline."""
     print("=" * 60)
     print("CRYPTO SCALPING BOT - BACKTEST")

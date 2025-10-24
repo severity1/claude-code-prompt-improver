@@ -13,12 +13,13 @@ Options:
 import sys
 import argparse
 from pathlib import Path
+from typing import Optional
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent / 'src'))
 
 
-def run_pipeline(skip_fetch=False, skip_train=False):
+def run_pipeline(skip_fetch: bool = False, skip_train: bool = False) -> bool:
     """Run the complete trading bot pipeline."""
     print("=" * 70)
     print("CRYPTO SCALPING BOT - COMPLETE PIPELINE")
@@ -94,7 +95,7 @@ def run_pipeline(skip_fetch=False, skip_train=False):
     return True
 
 
-def main():
+def main() -> None:
     """Parse arguments and run pipeline."""
     parser = argparse.ArgumentParser(
         description='Run the complete crypto scalping bot pipeline'
