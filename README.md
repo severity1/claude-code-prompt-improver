@@ -41,6 +41,8 @@ sequenceDiagram
 
 **Requirements:** Claude Code 2.0.22+ (uses AskUserQuestion tool for targeted clarifying questions)
 
+### Manual Installation
+
 **1. Copy the hook:**
 ```bash
 cp hooks/improve-prompt.py ~/.claude/hooks/
@@ -65,7 +67,44 @@ chmod +x ~/.claude/hooks/improve-prompt.py
 }
 ```
 
-Done. The hook runs automatically on every prompt.
+### Local Development Installation
+
+For testing changes or contributing:
+
+**1. Clone the repository:**
+```bash
+git clone https://github.com/severity1/claude-code-prompt-improver.git
+cd claude-code-prompt-improver
+```
+
+**2. Add local marketplace:**
+```bash
+claude "/plugin marketplace add /absolute/path/to/claude-code-prompt-improver/.dev-marketplace"
+```
+
+**3. Install the plugin:**
+```bash
+claude "/plugin install prompt-improver@local-dev"
+```
+
+**4. Restart Claude Code** to activate the plugin
+
+**Testing changes:**
+```bash
+# Make your changes to hooks/improve-prompt.py
+
+# Uninstall and reinstall to test
+claude "/plugin uninstall prompt-improver@local-dev"
+claude "/plugin install prompt-improver@local-dev"
+
+# Restart Claude Code
+```
+
+**Cleanup:**
+```bash
+claude "/plugin uninstall prompt-improver@local-dev"
+claude "/plugin marketplace remove local-dev"
+```
 
 ## Usage
 
