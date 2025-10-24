@@ -90,18 +90,30 @@ class DataPreprocessor:
         """
         Create sequences for LSTM training.
 
+        This is the core data preparation for time series LSTM models.
+        Converts a time series into supervised learning format using a sliding window approach.
+
         Args:
             df (pd.DataFrame): Preprocessed data with features
-            lookback (int): Number of time steps to look back
-            target_col (str): Column to predict
+            lookback (int): Number of time steps to look back (window size)
+            target_col (str): Column to predict (usually 'close' price)
 
         Returns:
-            tuple: (X, y) where X is input sequences and y is targets
+            tuple: (X, y, indices) where:
+                - X is input sequences: shape (num_samples, lookback, num_features)
+                - y is targets: shape (num_samples,)
+                - indices are the corresponding datetime indices
+
+        Example:
+            If lookback=60, we use the past 60 time steps to predict the next value.
+            For row 60: X[0] = data[0:60], y[0] = data[60]
+            For row 61: X[1] = data[1:61], y[1] = data[61]
+            This creates overlapping sequences (sliding window).
         """
         # Select feature columns based on config
         feature_names = self.config['model']['features']
 
-        # Ensure all features exist
+        # Ensure all features exist in the dataframe
         available_features = [f for f in feature_names if f in df.columns]
         if len(available_features) < len(feature_names):
             missing = set(feature_names) - set(available_features)
@@ -109,49 +121,76 @@ class DataPreprocessor:
 
         self.feature_columns = available_features
 
-        # Drop NaN values (from indicators)
+        # Drop NaN values (created by rolling window indicators like SMA, RSI, etc.)
         df = df.dropna()
 
-        # Extract features
+        # Extract features as numpy array
         features = df[self.feature_columns].values
 
-        # Normalize features
+        # Normalize features to [0, 1] range for better LSTM training
+        # Neural networks perform better when inputs are scaled to similar ranges
         features_scaled = self.scaler.fit_transform(features)
 
-        # Create sequences
+        # Create sequences using sliding window approach
         X, y = [], []
 
+        # Start from 'lookback' index because we need 'lookback' previous values
         for i in range(lookback, len(features_scaled)):
+            # X: sequence of past 'lookback' timesteps (all features)
+            # Shape: (lookback, num_features) e.g., (60, 20)
             X.append(features_scaled[i - lookback:i])
-            # Predict next period's close price (scaled)
+
+            # y: target value at current timestep (only the target column, scaled)
+            # We predict the current 'close' price using the past 'lookback' timesteps
             y.append(features_scaled[i, self.feature_columns.index(target_col)])
 
-        X = np.array(X)
-        y = np.array(y)
+        # Convert lists to numpy arrays
+        X = np.array(X)  # Shape: (num_samples, lookback, num_features)
+        y = np.array(y)  # Shape: (num_samples,)
 
         print(f"Created {len(X)} sequences with shape {X.shape}")
 
+        # Return the indices starting from 'lookback' position
+        # This helps track which datetime each prediction corresponds to
         return X, y, df.index[lookback:]
 
     def inverse_transform_predictions(self, predictions, feature_idx=0):
         """
         Convert scaled predictions back to original scale.
 
+        This is necessary because the LSTM model outputs predictions in scaled form [0, 1].
+        We need to convert them back to actual price values for interpretation and trading.
+
         Args:
-            predictions (np.array): Scaled predictions
-            feature_idx (int): Index of the predicted feature
+            predictions (np.array): Scaled predictions from LSTM (values in [0, 1])
+            feature_idx (int): Index of the predicted feature in feature_columns
+                              (default 0 assumes 'close' is the first feature)
 
         Returns:
-            np.array: Unscaled predictions
+            np.array: Unscaled predictions in original price units
+
+        Example:
+            Scaled prediction: 0.75
+            After inverse transform: $45,234.56 (actual BTC price)
+
+        Technical note:
+            MinMaxScaler scales each feature independently. To inverse transform one feature,
+            we must create a dummy array with all features, then extract only the target column.
         """
         # Create dummy array with same shape as original features
+        # Required because MinMaxScaler was fitted on all features together
         n_features = len(self.feature_columns)
         dummy = np.zeros((len(predictions), n_features))
+
+        # Fill in the predicted feature column with our predictions
+        # All other columns remain zeros (will be ignored)
         dummy[:, feature_idx] = predictions.flatten()
 
-        # Inverse transform
+        # Apply inverse transformation using the fitted scaler
+        # This converts scaled values [0, 1] back to original price range
         unscaled = self.scaler.inverse_transform(dummy)
 
+        # Extract and return only the predicted feature column (e.g., 'close' price)
         return unscaled[:, feature_idx]
 
     def save_scaler(self, filepath='data/scaler.pkl'):

@@ -41,28 +41,34 @@ class LSTMPricePredictor:
         model = keras.Sequential()
 
         # First LSTM layer
+        # return_sequences=True means the LSTM will output the full sequence (needed when stacking LSTMs)
+        # return_sequences=False means only the final output is returned (used for the last LSTM layer)
         model.add(layers.LSTM(
-            lstm_units[0],
-            return_sequences=True if len(lstm_units) > 1 else False,
-            input_shape=input_shape
+            lstm_units[0],  # Number of LSTM units (memory cells) in the first layer
+            return_sequences=True if len(lstm_units) > 1 else False,  # True if we're stacking multiple LSTM layers
+            input_shape=input_shape  # (timesteps, features) e.g., (60, 20)
         ))
+        # Dropout prevents overfitting by randomly setting a fraction of input units to 0 during training
         model.add(layers.Dropout(dropout_rate))
 
-        # Additional LSTM layers
+        # Additional LSTM layers (if configured for a deeper network)
         for i, units in enumerate(lstm_units[1:]):
+            # For all layers except the last one, return_sequences=True to pass the sequence to the next LSTM
+            # The last LSTM layer returns only the final output (return_sequences=False)
             return_seq = i < len(lstm_units) - 2
             model.add(layers.LSTM(units, return_sequences=return_seq))
             model.add(layers.Dropout(dropout_rate))
 
-        # Output layer
+        # Output layer: Single neuron that predicts the next price (regression task)
         model.add(layers.Dense(1))
 
-        # Compile model
+        # Compile model with Adam optimizer and Mean Squared Error loss
+        # MSE is appropriate for regression tasks (price prediction)
         optimizer = keras.optimizers.Adam(learning_rate=learning_rate)
         model.compile(
             optimizer=optimizer,
-            loss='mse',
-            metrics=['mae']
+            loss='mse',  # Mean Squared Error: measures average squared difference between predictions and actual values
+            metrics=['mae']  # Mean Absolute Error: easier to interpret than MSE (in same units as target)
         )
 
         self.model = model
@@ -92,35 +98,40 @@ class LSTMPricePredictor:
         epochs = self.config['model']['epochs']
         batch_size = self.config['model']['batch_size']
 
-        # Callbacks
+        # Callbacks for training optimization and model checkpointing
+        # Early Stopping: Stops training when validation loss stops improving
+        # This prevents overfitting and saves computation time
         early_stopping = callbacks.EarlyStopping(
-            monitor='val_loss' if X_val is not None else 'loss',
-            patience=10,
-            restore_best_weights=True,
+            monitor='val_loss' if X_val is not None else 'loss',  # Metric to monitor
+            patience=10,  # Number of epochs with no improvement before stopping
+            restore_best_weights=True,  # Restore model weights from the epoch with best monitored value
             verbose=1
         )
 
+        # Learning Rate Reduction: Reduces learning rate when a metric has stopped improving
+        # Helps the model fine-tune by taking smaller steps as it approaches optimal weights
         reduce_lr = callbacks.ReduceLROnPlateau(
             monitor='val_loss' if X_val is not None else 'loss',
-            factor=0.5,
-            patience=5,
-            min_lr=1e-7,
+            factor=0.5,  # Factor by which the learning rate will be reduced (new_lr = lr * factor)
+            patience=5,  # Number of epochs with no improvement before reducing LR
+            min_lr=1e-7,  # Lower bound on the learning rate
             verbose=1
         )
 
+        # Model Checkpoint: Saves the model after every epoch (only if it's the best so far)
         checkpoint_dir = Path('models/checkpoints')
         checkpoint_dir.mkdir(parents=True, exist_ok=True)
 
         model_checkpoint = callbacks.ModelCheckpoint(
             checkpoint_dir / 'best_model.keras',
             monitor='val_loss' if X_val is not None else 'loss',
-            save_best_only=True,
+            save_best_only=True,  # Only save when the monitored metric improves
             verbose=1
         )
 
         callback_list = [early_stopping, reduce_lr, model_checkpoint]
 
-        # Train model
+        # Prepare validation data tuple for training
         validation_data = (X_val, y_val) if X_val is not None else None
 
         print(f"\nTraining model for up to {epochs} epochs...")
@@ -163,20 +174,25 @@ class LSTMPricePredictor:
         """
         predictions = self.predict(X_test)
 
-        mse = np.mean((predictions.flatten() - y_test) ** 2)
-        mae = np.mean(np.abs(predictions.flatten() - y_test))
-        rmse = np.sqrt(mse)
+        # Calculate standard regression metrics
+        mse = np.mean((predictions.flatten() - y_test) ** 2)  # Mean Squared Error
+        mae = np.mean(np.abs(predictions.flatten() - y_test))  # Mean Absolute Error
+        rmse = np.sqrt(mse)  # Root Mean Squared Error (in same units as target)
 
-        # Direction accuracy (did we predict up/down correctly?)
-        actual_direction = np.sign(np.diff(y_test))
-        pred_direction = np.sign(np.diff(predictions.flatten()))
+        # Direction accuracy: Critical metric for trading strategy
+        # This measures whether we correctly predict if price will go UP or DOWN
+        # More important than exact price prediction for trading decisions
+        # np.diff calculates the difference between consecutive elements (price changes)
+        actual_direction = np.sign(np.diff(y_test))  # +1 for up, -1 for down, 0 for no change
+        pred_direction = np.sign(np.diff(predictions.flatten()))  # Same for predictions
+        # Calculate percentage of times we correctly predicted the direction
         direction_accuracy = np.mean(actual_direction == pred_direction)
 
         metrics = {
             'mse': mse,
             'mae': mae,
             'rmse': rmse,
-            'direction_accuracy': direction_accuracy
+            'direction_accuracy': direction_accuracy  # >0.5 means better than random guessing
         }
 
         print("\nEvaluation Metrics:")
