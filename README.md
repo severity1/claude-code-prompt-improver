@@ -45,7 +45,7 @@ sequenceDiagram
 
 **1. Copy the hook:**
 ```bash
-cp hooks/improve-prompt.py ~/.claude/hooks/
+cp scripts/improve-prompt.py ~/.claude/hooks/
 chmod +x ~/.claude/hooks/improve-prompt.py
 ```
 
@@ -67,44 +67,7 @@ chmod +x ~/.claude/hooks/improve-prompt.py
 }
 ```
 
-### Local Development Installation
-
-For testing changes or contributing:
-
-**1. Clone the repository:**
-```bash
-git clone https://github.com/severity1/claude-code-prompt-improver.git
-cd claude-code-prompt-improver
-```
-
-**2. Add local marketplace:**
-```bash
-claude "/plugin marketplace add /absolute/path/to/claude-code-prompt-improver/.dev-marketplace"
-```
-
-**3. Install the plugin:**
-```bash
-claude "/plugin install prompt-improver@local-dev"
-```
-
-**4. Restart Claude Code** to activate the plugin
-
-**Testing changes:**
-```bash
-# Make your changes to hooks/improve-prompt.py
-
-# Uninstall and reinstall to test
-claude "/plugin uninstall prompt-improver@local-dev"
-claude "/plugin install prompt-improver@local-dev"
-
-# Restart Claude Code
-```
-
-**Cleanup:**
-```bash
-claude "/plugin uninstall prompt-improver@local-dev"
-claude "/plugin marketplace remove local-dev"
-```
+> **Note:** Plugin installation is not currently supported due to a bug where UserPromptSubmit hooks from plugins match but never execute ([#10225](https://github.com/anthropics/claude-code/issues/10225)). Manual installation via `settings.json` is the only working method.
 
 ## Usage
 
