@@ -1,40 +1,173 @@
-# Trading Bot Configuration
+# ============================================================================
+# CRYPTO SCALPING BOT CONFIGURATION
+# ============================================================================
+# This file contains all configuration parameters for the ML-based crypto
+# scalping bot. Modify these values to adjust trading behavior, risk
+# management, model architecture, and backtesting parameters.
+# ============================================================================
 
+# ----------------------------------------------------------------------------
+# EXCHANGE CONFIGURATION
+# ----------------------------------------------------------------------------
+# Settings for connecting to the cryptocurrency exchange
 exchange:
+  # Exchange to use for trading and data fetching
+  # Supported: okx, binance, bybit
+  # Note: Currently implemented and tested only with OKX
   name: okx
+
+  # Use sandbox/paper trading environment (if available)
+  # Set to true for testing without real money
+  # WARNING: Not all exchanges support sandbox mode
   sandbox: false
+
+  # Use testnet environment (separate test network)
+  # Different from sandbox - uses test network with test tokens
   testnet: false
 
+# ----------------------------------------------------------------------------
+# TRADING PARAMETERS
+# ----------------------------------------------------------------------------
+# Core trading settings that define what and how to trade
 trading:
-  symbol: BTC/USDT:USDT  # Perpetual futures contract
-  timeframe: 1m          # 1-minute candles for scalping
-  initial_capital: 10000 # Starting capital in USDT
+  # Trading pair to trade (format: BASE/QUOTE:SETTLEMENT)
+  # Examples:
+  #   - BTC/USDT:USDT  (Bitcoin perpetual futures settled in USDT)
+  #   - ETH/USDT:USDT  (Ethereum perpetual futures)
+  # The :USDT suffix indicates this is a USDT-margined perpetual contract
+  symbol: BTC/USDT:USDT
 
-  # Scalping parameters
-  max_position_size: 0.1   # Max 10% of capital per trade
-  leverage: 5              # Leverage for perp contracts
-  stop_loss_pct: 0.005     # 0.5% stop loss
-  take_profit_pct: 0.01    # 1% take profit
+  # Timeframe for candlestick data
+  # Supported values: 1m, 5m, 15m, 30m, 1h, 4h, 1d
+  # Lower timeframes (1m, 5m) are better for scalping but generate more data
+  # Higher timeframes are better for swing trading
+  timeframe: 1m
 
-  # Risk management
-  max_daily_loss: 0.05     # Stop trading if down 5% for the day
+  # Initial trading capital in USDT
+  # This is the starting balance for backtesting and live trading
+  # Minimum recommended: 1000 USDT for meaningful results
+  initial_capital: 10000
+
+  # ---- Position Sizing & Leverage ----
+
+  # Maximum position size as a fraction of total capital
+  # Range: 0.0 to 1.0 (0.1 = 10% of capital per trade)
+  # Recommended: 0.05 to 0.15 for scalping to manage risk
+  # Lower values = more conservative, higher values = more aggressive
+  max_position_size: 0.1
+
+  # Leverage multiplier for perpetual futures contracts
+  # Range: 1 to 125 (depends on exchange and symbol)
+  # Higher leverage = higher risk and potential for liquidation
+  # Recommended: 3-10 for scalping, never exceed 20x
+  # WARNING: Use leverage with extreme caution
+  leverage: 5
+
+  # ---- Exit Strategy ----
+
+  # Stop loss percentage (distance from entry price)
+  # Range: 0.001 to 0.1 (0.005 = 0.5% loss triggers exit)
+  # Tighter stops = less loss per trade but more frequent exits
+  # Wider stops = larger potential losses but fewer false exits
+  stop_loss_pct: 0.005
+
+  # Take profit percentage (distance from entry price)
+  # Range: 0.001 to 0.1 (0.01 = 1% profit triggers exit)
+  # Should generally be 1.5x to 3x the stop loss for positive risk/reward
+  # Current setting gives 2:1 reward-to-risk ratio (1% profit / 0.5% loss)
+  take_profit_pct: 0.01
+
+  # ---- Risk Management ----
+
+  # Maximum daily loss as a fraction of initial capital
+  # Range: 0.01 to 0.2 (0.05 = stop trading if down 5% in a day)
+  # Prevents catastrophic losses from continued trading during bad conditions
+  # Bot will stop opening new positions if this threshold is reached
+  max_daily_loss: 0.05
+
+  # Maximum number of positions open simultaneously
+  # Range: 1 to 10 (recommended: 1-3 for scalping)
+  # More positions = more diversification but harder to manage
+  # Scalping bots typically use 1-3 to maintain focus
   max_open_positions: 3
 
+# ----------------------------------------------------------------------------
+# MODEL CONFIGURATION
+# ----------------------------------------------------------------------------
+# Machine learning model architecture and training parameters
 model:
+  # Type of neural network model to use
+  # Supported: lstm (Long Short-Term Memory)
+  # Future: gru, transformer, ensemble
   type: lstm
-  lookback_periods: 60     # Use last 60 minutes of data
 
-  # LSTM architecture
-  lstm_units: [64, 32]     # Two LSTM layers
+  # Number of historical periods (candles) to use for prediction
+  # For 1m timeframe: 60 = last 60 minutes (1 hour)
+  # Range: 10 to 200 (higher = more context but slower training)
+  # Recommended: 30-120 for short-term scalping
+  lookback_periods: 60
+
+  # ---- LSTM Architecture ----
+
+  # Number of units (neurons) in each LSTM layer
+  # Format: [layer1_units, layer2_units, ...]
+  # Examples:
+  #   - [64, 32]     - Two layers: 64 → 32 neurons
+  #   - [128, 64, 32] - Three layers: 128 → 64 → 32 neurons
+  #   - [100]        - Single layer with 100 neurons
+  # More layers/units = more capacity but risk of overfitting
+  # Recommended: 2-3 layers with decreasing units
+  lstm_units: [64, 32]
+
+  # Dropout rate for regularization (prevents overfitting)
+  # Range: 0.0 to 0.5 (0.2 = randomly drop 20% of connections)
+  # Higher values = more regularization but slower learning
+  # Recommended: 0.1 to 0.3 for time series data
   dropout_rate: 0.2
 
-  # Training
+  # ---- Training Parameters ----
+
+  # Number of training epochs (complete passes through the data)
+  # Range: 10 to 200
+  # More epochs = better fit but risk of overfitting
+  # Training includes early stopping to prevent overfitting
   epochs: 30
+
+  # Batch size for training (number of samples per gradient update)
+  # Range: 8 to 256 (must be power of 2 for best performance)
+  # Smaller batches = more updates but noisier gradients
+  # Larger batches = faster training but less frequent updates
+  # Recommended: 32 or 64 for time series
   batch_size: 32
+
+  # Fraction of training data to use for validation
+  # Range: 0.1 to 0.3 (0.2 = 20% of data for validation)
+  # Validation data is used to monitor overfitting during training
+  # Not used for gradient updates, only for evaluation
   validation_split: 0.2
+
+  # Learning rate for Adam optimizer
+  # Range: 0.0001 to 0.01
+  # Lower values = slower but more stable learning
+  # Higher values = faster but risk of instability
+  # Recommended: 0.001 to 0.0001 for LSTM models
   learning_rate: 0.001
 
-  # Features to use
+  # ---- Input Features ----
+
+  # List of features to use as model inputs
+  # Available features (must match those in preprocess.py):
+  #   - close         : Closing price
+  #   - volume        : Trading volume
+  #   - rsi_14        : 14-period Relative Strength Index
+  #   - macd          : MACD line
+  #   - macd_signal   : MACD signal line
+  #   - macd_hist     : MACD histogram
+  #   - bb_upper      : Bollinger Band upper line
+  #   - bb_middle     : Bollinger Band middle line
+  #   - bb_lower      : Bollinger Band lower line
+  # More features = more information but risk of noise
+  # Start with core features and add gradually
   features:
     - close
     - volume
@@ -43,16 +176,69 @@ model:
     - bb_upper
     - bb_lower
 
+# ----------------------------------------------------------------------------
+# BACKTESTING CONFIGURATION
+# ----------------------------------------------------------------------------
+# Parameters for testing the strategy on historical data
 backtesting:
+  # Start date for backtesting period (format: YYYY-MM-DD)
+  # Earlier dates provide more data but take longer to fetch
+  # Ensure exchange has data available for this date
   start_date: "2024-01-01"
-  end_date: "2024-03-31"   # 3 months of data for faster testing
-  commission: 0.0004       # 0.04% taker fee on OKX
-  slippage: 0.0001         # 0.01% slippage estimate
 
+  # End date for backtesting period (format: YYYY-MM-DD)
+  # Use recent date to test on latest market conditions
+  # Recommended: 2-6 months of data for initial testing
+  end_date: "2024-03-31"
+
+  # Trading commission as a decimal (exchange fee per trade)
+  # Format: 0.0004 = 0.04% per trade
+  # Common values:
+  #   - OKX Spot: 0.0008 (0.08% taker), 0.0002 (0.02% maker)
+  #   - OKX Futures: 0.0005 (0.05% taker), 0.0002 (0.02% maker)
+  #   - Binance: 0.001 (0.1% taker), 0.0001 (0.01% maker)
+  # Use taker fees for conservative estimates (scalping often uses market orders)
+  commission: 0.0004
+
+  # Estimated slippage per trade as a decimal
+  # Format: 0.0001 = 0.01% slippage
+  # Slippage = difference between expected and actual execution price
+  # Higher for volatile markets and larger orders
+  # Recommended: 0.0001 to 0.001 depending on market liquidity
+  slippage: 0.0001
+
+# ----------------------------------------------------------------------------
+# TECHNICAL INDICATORS CONFIGURATION
+# ----------------------------------------------------------------------------
+# Parameters for calculating technical indicators used in the model
 indicators:
+  # ---- RSI (Relative Strength Index) ----
+  # Number of periods for RSI calculation
+  # Range: 5 to 30 (14 is standard)
+  # Lower values = more sensitive to price changes
+  # Higher values = smoother, less sensitive
   rsi_period: 14
+
+  # ---- MACD (Moving Average Convergence Divergence) ----
+  # Fast EMA period (shorter moving average)
+  # Standard: 12 periods
   macd_fast: 12
+
+  # Slow EMA period (longer moving average)
+  # Standard: 26 periods
   macd_slow: 26
+
+  # Signal line EMA period (smooths MACD line)
+  # Standard: 9 periods
   macd_signal: 9
+
+  # ---- Bollinger Bands ----
+  # Number of periods for moving average calculation
+  # Range: 10 to 50 (20 is standard)
   bb_period: 20
+
+  # Number of standard deviations for band width
+  # Range: 1 to 3 (2 is standard)
+  # Higher values = wider bands, fewer signals
+  # Lower values = tighter bands, more signals
   bb_std: 2
