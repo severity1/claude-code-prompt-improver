@@ -19,7 +19,33 @@ sys.path.insert(0, str(Path(__file__).parent / 'src'))
 
 
 def run_pipeline(skip_fetch=False, skip_train=False):
-    """Run the complete trading bot pipeline."""
+    """Run the complete trading bot pipeline from data fetching to backtesting.
+
+    This function orchestrates the entire workflow:
+    1. Fetches historical OHLCV data from OKX
+    2. Preprocesses data and adds technical indicators
+    3. Trains the LSTM model
+    4. Runs backtest with the trained model
+
+    Args:
+        skip_fetch (bool, optional): If True, skips data fetching step and uses existing data.
+            Defaults to False.
+        skip_train (bool, optional): If True, skips model training step and uses existing model.
+            Defaults to False.
+
+    Returns:
+        bool: True if pipeline completed successfully, False if any step failed.
+
+    Example:
+        >>> # Run complete pipeline
+        >>> run_pipeline()
+
+        >>> # Skip fetching if data already exists
+        >>> run_pipeline(skip_fetch=True)
+
+        >>> # Use existing data and model, only run backtest
+        >>> run_pipeline(skip_fetch=True, skip_train=True)
+    """
     print("=" * 70)
     print("CRYPTO SCALPING BOT - COMPLETE PIPELINE")
     print("=" * 70)
@@ -95,7 +121,21 @@ def run_pipeline(skip_fetch=False, skip_train=False):
 
 
 def main():
-    """Parse arguments and run pipeline."""
+    """Parse command-line arguments and run the trading bot pipeline.
+
+    This function handles command-line argument parsing for the pipeline script.
+    It accepts optional flags to skip data fetching and model training steps.
+
+    Returns:
+        None: Exits with code 0 on success, 1 on failure.
+
+    Example:
+        Command-line usage:
+        $ python run_pipeline.py
+        $ python run_pipeline.py --skip-fetch
+        $ python run_pipeline.py --skip-train
+        $ python run_pipeline.py --skip-fetch --skip-train
+    """
     parser = argparse.ArgumentParser(
         description='Run the complete crypto scalping bot pipeline'
     )

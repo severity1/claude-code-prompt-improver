@@ -11,10 +11,35 @@ from pathlib import Path
 
 
 class OKXDataFetcher:
-    """Fetch and save historical data from OKX."""
+    """Fetch and save historical OHLCV data from OKX perpetual futures exchange.
+
+    This class provides methods to fetch historical candlestick data from OKX's
+    public API without requiring authentication. It handles pagination, rate
+    limiting, and data cleaning automatically.
+
+    Attributes:
+        config (dict): Configuration dictionary loaded from YAML file.
+        exchange (ccxt.okx): CCXT exchange object configured for OKX.
+        symbol (str): Trading symbol (e.g., 'BTC/USDT:USDT').
+        timeframe (str): Candlestick timeframe (e.g., '5m', '15m', '1h').
+
+    Example:
+        >>> fetcher = OKXDataFetcher()
+        >>> df = fetcher.fetch_ohlcv('2024-01-01', '2024-01-31')
+        >>> fetcher.save_data(df)
+    """
 
     def __init__(self, config_path='config/config.yaml'):
-        """Initialize the data fetcher with configuration."""
+        """Initialize the data fetcher with configuration from YAML file.
+
+        Args:
+            config_path (str, optional): Path to the YAML configuration file.
+                Defaults to 'config/config.yaml'.
+
+        Example:
+            >>> fetcher = OKXDataFetcher()
+            >>> fetcher = OKXDataFetcher('custom/config.yaml')
+        """
         with open(config_path, 'r') as f:
             self.config = yaml.safe_load(f)
 
@@ -30,16 +55,35 @@ class OKXDataFetcher:
         self.timeframe = self.config['trading']['timeframe']
 
     def fetch_ohlcv(self, start_date, end_date=None, limit=1000):
-        """
-        Fetch OHLCV data for the specified date range.
+        """Fetch OHLCV (Open, High, Low, Close, Volume) data for the specified date range.
+
+        This method handles pagination automatically to fetch data beyond the single
+        request limit. It respects rate limits and removes duplicate entries.
 
         Args:
-            start_date (str): Start date in 'YYYY-MM-DD' format
-            end_date (str): End date in 'YYYY-MM-DD' format (default: today)
-            limit (int): Number of candles per request (max 1000 for OKX)
+            start_date (str): Start date in 'YYYY-MM-DD' format (e.g., '2024-01-01').
+            end_date (str, optional): End date in 'YYYY-MM-DD' format. If None, uses today.
+                Defaults to None.
+            limit (int, optional): Number of candles per API request. Maximum 1000 for OKX.
+                Defaults to 1000.
 
         Returns:
-            pd.DataFrame: OHLCV data with columns [timestamp, open, high, low, close, volume]
+            pd.DataFrame: DataFrame with columns:
+                - timestamp (int): Unix timestamp in milliseconds
+                - open (float): Opening price
+                - high (float): Highest price in the period
+                - low (float): Lowest price in the period
+                - close (float): Closing price
+                - volume (float): Trading volume
+                - datetime (datetime): Timestamp converted to datetime object
+
+        Example:
+            >>> fetcher = OKXDataFetcher()
+            >>> # Fetch one month of data
+            >>> df = fetcher.fetch_ohlcv('2024-01-01', '2024-01-31')
+            >>> print(f"Fetched {len(df)} candles")
+            >>> # Fetch until today
+            >>> df = fetcher.fetch_ohlcv('2024-01-01')
         """
         if end_date is None:
             end_date = datetime.now().strftime('%Y-%m-%d')
@@ -101,12 +145,27 @@ class OKXDataFetcher:
         return df
 
     def save_data(self, df, filename=None):
-        """
-        Save data to CSV file.
+        """Save OHLCV data to a CSV file in the data directory.
+
+        If no filename is provided, generates a descriptive filename automatically
+        based on the symbol, timeframe, and date range.
 
         Args:
-            df (pd.DataFrame): Data to save
-            filename (str): Output filename (default: auto-generated)
+            df (pd.DataFrame): DataFrame containing OHLCV data to save.
+            filename (str, optional): Output filename. If None, generates filename
+                automatically in format: SYMBOL_TIMEFRAME_STARTDATE_to_ENDDATE.csv
+                Defaults to None.
+
+        Returns:
+            pathlib.Path: Path object pointing to the saved file.
+
+        Example:
+            >>> fetcher = OKXDataFetcher()
+            >>> df = fetcher.fetch_ohlcv('2024-01-01', '2024-01-31')
+            >>> # Auto-generate filename
+            >>> path = fetcher.save_data(df)
+            >>> # Custom filename
+            >>> path = fetcher.save_data(df, 'my_data.csv')
         """
         if filename is None:
             # Create filename from symbol and date range
@@ -127,7 +186,18 @@ class OKXDataFetcher:
 
 
 def main():
-    """Main execution function."""
+    """Main execution function to fetch and save historical data.
+
+    Loads configuration, fetches OHLCV data for the date range specified
+    in the config file, displays statistics, and saves the data to CSV.
+
+    Returns:
+        None
+
+    Example:
+        Run from command line:
+        $ python fetch_data.py
+    """
     # Load config to get date range
     with open('config/config.yaml', 'r') as f:
         config = yaml.safe_load(f)

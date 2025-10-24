@@ -11,28 +11,75 @@ import json
 
 
 class PerformanceAnalyzer:
-    """Analyze and visualize trading performance."""
+    """Analyze and visualize trading strategy performance with comprehensive metrics.
+
+    This class provides detailed performance analysis including calculation of
+    trading metrics, visualization of equity curves, trade distributions, and
+    risk analysis. It generates professional-grade reports and plots.
+
+    Attributes:
+        trades_df (pd.DataFrame): DataFrame containing individual trade records.
+        equity_curve (pd.Series): Time series of portfolio equity values.
+
+    Example:
+        >>> analyzer = PerformanceAnalyzer(trades_df, equity_curve)
+        >>> metrics = analyzer.calculate_metrics(initial_capital=10000)
+        >>> analyzer.plot_equity_curve()
+        >>> analyzer.plot_trade_analysis()
+        >>> analyzer.generate_report()
+    """
 
     def __init__(self, trades_df=None, equity_curve=None):
-        """
-        Initialize analyzer with trade data.
+        """Initialize analyzer with trade data and equity curve.
 
         Args:
-            trades_df (pd.DataFrame): DataFrame of individual trades
-            equity_curve (pd.Series): Time series of equity values
+            trades_df (pd.DataFrame, optional): DataFrame of individual trades
+                containing columns like 'PnL', 'EntryTime', 'ExitTime', etc.
+                Defaults to None.
+            equity_curve (pd.Series, optional): Time-indexed series of equity values.
+                Defaults to None.
+
+        Example:
+            >>> analyzer = PerformanceAnalyzer(trades_df, equity_curve)
+            >>> analyzer = PerformanceAnalyzer()  # Create empty, populate later
         """
         self.trades_df = trades_df
         self.equity_curve = equity_curve
 
     def calculate_metrics(self, initial_capital=10000):
-        """
-        Calculate comprehensive performance metrics.
+        """Calculate comprehensive performance metrics from trade history.
+
+        Computes a wide range of trading performance metrics including:
+        - Trade statistics (total, winning, losing, win rate)
+        - P&L metrics (total, average, largest win/loss)
+        - Risk metrics (profit factor, Sharpe ratio, drawdowns)
+        - Trade duration statistics
+        - Consecutive win/loss streaks
 
         Args:
-            initial_capital (float): Starting capital
+            initial_capital (float, optional): Starting capital in USD used to
+                calculate percentage returns. Defaults to 10000.
 
         Returns:
-            dict: Performance metrics
+            dict: Dictionary containing comprehensive performance metrics:
+                - total_trades (int): Total number of trades executed
+                - winning_trades (int): Number of profitable trades
+                - losing_trades (int): Number of losing trades
+                - win_rate_pct (float): Percentage of winning trades
+                - total_pnl (float): Total profit/loss
+                - total_return_pct (float): Total return as percentage
+                - avg_win (float): Average profit per winning trade
+                - avg_loss (float): Average loss per losing trade
+                - profit_factor (float): Ratio of gross profit to gross loss
+                - sharpe_ratio (float): Annualized Sharpe ratio
+                - max_drawdown_pct (float): Maximum drawdown percentage
+                And more...
+
+        Example:
+            >>> analyzer = PerformanceAnalyzer(trades_df, equity_curve)
+            >>> metrics = analyzer.calculate_metrics(initial_capital=10000)
+            >>> print(f"Win Rate: {metrics['win_rate_pct']:.2f}%")
+            >>> print(f"Sharpe Ratio: {metrics['sharpe_ratio']:.2f}")
         """
         if self.trades_df is None or len(self.trades_df) == 0:
             return {}
@@ -115,7 +162,24 @@ class PerformanceAnalyzer:
         return metrics
 
     def plot_equity_curve(self, save_path='results/equity_curve.png'):
-        """Plot equity curve over time."""
+        """Plot and save equity curve and drawdown chart.
+
+        Creates a two-panel plot showing:
+        1. Equity curve over time with initial capital reference line
+        2. Drawdown percentage over time
+
+        Args:
+            save_path (str, optional): Path where the plot image will be saved.
+                Defaults to 'results/equity_curve.png'.
+
+        Returns:
+            None
+
+        Example:
+            >>> analyzer = PerformanceAnalyzer(trades_df, equity_curve)
+            >>> analyzer.plot_equity_curve()
+            >>> analyzer.plot_equity_curve('analysis/equity.png')
+        """
         if self.equity_curve is None:
             print("No equity curve data available.")
             return
@@ -150,7 +214,26 @@ class PerformanceAnalyzer:
         plt.close()
 
     def plot_trade_analysis(self, save_path='results/trade_analysis.png'):
-        """Plot trade distribution and analysis."""
+        """Plot comprehensive trade analysis with multiple visualizations.
+
+        Creates a 2x2 grid of plots showing:
+        1. P&L distribution histogram
+        2. Cumulative P&L over trades
+        3. P&L by hour of day
+        4. Rolling win rate (20-trade window)
+
+        Args:
+            save_path (str, optional): Path where the plot image will be saved.
+                Defaults to 'results/trade_analysis.png'.
+
+        Returns:
+            None
+
+        Example:
+            >>> analyzer = PerformanceAnalyzer(trades_df, equity_curve)
+            >>> analyzer.plot_trade_analysis()
+            >>> analyzer.plot_trade_analysis('analysis/trades.png')
+        """
         if self.trades_df is None or len(self.trades_df) == 0:
             print("No trade data available.")
             return
@@ -214,7 +297,23 @@ class PerformanceAnalyzer:
         plt.close()
 
     def plot_returns_distribution(self, save_path='results/returns_distribution.png'):
-        """Plot returns distribution and statistics."""
+        """Plot returns distribution with normal curve overlay and Q-Q plot.
+
+        Creates two plots:
+        1. Histogram of returns with fitted normal distribution curve
+        2. Q-Q plot to assess normality of returns
+
+        Args:
+            save_path (str, optional): Path where the plot image will be saved.
+                Defaults to 'results/returns_distribution.png'.
+
+        Returns:
+            None
+
+        Example:
+            >>> analyzer = PerformanceAnalyzer(trades_df, equity_curve)
+            >>> analyzer.plot_returns_distribution()
+        """
         if self.trades_df is None or len(self.trades_df) == 0:
             print("No trade data available.")
             return
@@ -254,7 +353,28 @@ class PerformanceAnalyzer:
         plt.close()
 
     def generate_report(self, save_path='results/performance_report.json', initial_capital=10000):
-        """Generate comprehensive performance report."""
+        """Generate and save a comprehensive performance report in JSON format.
+
+        Calculates all metrics and saves them to a JSON file, then prints a
+        summary to the console.
+
+        Args:
+            save_path (str, optional): Path where the JSON report will be saved.
+                Defaults to 'results/performance_report.json'.
+            initial_capital (float, optional): Starting capital for calculating
+                percentage returns. Defaults to 10000.
+
+        Returns:
+            dict: Dictionary containing all calculated performance metrics.
+
+        Example:
+            >>> analyzer = PerformanceAnalyzer(trades_df, equity_curve)
+            >>> metrics = analyzer.generate_report(
+            ...     save_path='results/report.json',
+            ...     initial_capital=10000
+            ... )
+            >>> print(f"Report saved with {metrics['total_trades']} trades")
+        """
         metrics = self.calculate_metrics(initial_capital)
 
         # Add trade details if available
@@ -291,7 +411,18 @@ class PerformanceAnalyzer:
 
 
 def main():
-    """Generate performance analysis from backtest results."""
+    """Generate performance analysis visualizations from backtest results.
+
+    Loads backtest results and creates performance analysis plots.
+    This is a template showing how to use the PerformanceAnalyzer class.
+
+    Returns:
+        None
+
+    Example:
+        Run from command line:
+        $ python performance_analyzer.py
+    """
     from pathlib import Path
     import sys
 

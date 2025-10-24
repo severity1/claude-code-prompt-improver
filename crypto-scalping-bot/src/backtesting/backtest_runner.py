@@ -17,10 +17,36 @@ from data.preprocess import DataPreprocessor
 
 
 class BacktestRunner:
-    """Run and manage backtests for the trading bot."""
+    """Run and manage backtests for LSTM-based trading strategies.
+
+    This class handles the complete backtesting workflow including data preparation,
+    strategy execution, results analysis, and visualization. It uses the backtesting.py
+    library for running simulations.
+
+    Attributes:
+        config (dict): Configuration dictionary from YAML file.
+        results (pd.Series): Backtest results from the most recent run.
+        bt (backtesting.Backtest): Backtest object from the most recent run.
+
+    Example:
+        >>> runner = BacktestRunner()
+        >>> bt_data = runner.prepare_data_for_backtest(df, predictions)
+        >>> results = runner.run_backtest(bt_data)
+        >>> runner.print_results()
+        >>> runner.plot_results()
+    """
 
     def __init__(self, config_path='config/config.yaml'):
-        """Initialize backtest runner with configuration."""
+        """Initialize backtest runner with configuration from YAML file.
+
+        Args:
+            config_path (str, optional): Path to the YAML configuration file.
+                Defaults to 'config/config.yaml'.
+
+        Example:
+            >>> runner = BacktestRunner()
+            >>> runner = BacktestRunner('custom/config.yaml')
+        """
         with open(config_path, 'r') as f:
             self.config = yaml.safe_load(f)
 
@@ -28,15 +54,31 @@ class BacktestRunner:
         self.bt = None
 
     def prepare_data_for_backtest(self, df, predictions):
-        """
-        Prepare data in the format required by backtesting.py.
+        """Prepare and format data for the backtesting.py library.
+
+        Converts OHLCV data and predictions into the specific format required
+        by backtesting.py, including proper column naming, datetime indexing,
+        and alignment of predictions with price data.
 
         Args:
-            df (pd.DataFrame): OHLCV data with technical indicators
-            predictions (np.array): LSTM predictions
+            df (pd.DataFrame): DataFrame with OHLCV data and technical indicators.
+                Must contain columns: open, high, low, close, volume, rsi_14,
+                macd, macd_signal, bb_upper, bb_lower, datetime.
+            predictions (np.ndarray): Array of LSTM price predictions, already
+                unscaled to actual price values.
 
         Returns:
-            pd.DataFrame: Data formatted for backtesting.py
+            pd.DataFrame: DataFrame formatted for backtesting.py with columns:
+                Open, High, Low, Close, Volume, RSI, MACD, MACD_Signal,
+                BB_Upper, BB_Lower, Predicted_Price. Indexed by datetime
+                and NaN rows removed.
+
+        Example:
+            >>> runner = BacktestRunner()
+            >>> df_processed = preprocessor.add_technical_indicators(raw_df)
+            >>> predictions = model.predict(X_test)
+            >>> bt_data = runner.prepare_data_for_backtest(df_processed, predictions)
+            >>> print(bt_data.head())
         """
         # Backtesting.py requires specific column names
         bt_data = pd.DataFrame({
@@ -69,17 +111,38 @@ class BacktestRunner:
         return bt_data
 
     def run_backtest(self, data, strategy_class=LSTMScalpingStrategy, cash=10000, commission=0.0004):
-        """
-        Run a backtest with the specified strategy.
+        """Run a backtest simulation with the specified trading strategy.
+
+        Executes a complete backtest using the backtesting.py library, including
+        all trades, position sizing, and commission calculations.
 
         Args:
-            data (pd.DataFrame): Prepared data for backtesting
-            strategy_class: Strategy class to use
-            cash (float): Initial capital
-            commission (float): Trading commission (0.0004 = 0.04%)
+            data (pd.DataFrame): Prepared data formatted for backtesting (from
+                prepare_data_for_backtest method).
+            strategy_class (Strategy, optional): Strategy class to backtest.
+                Must inherit from backtesting.Strategy. Defaults to LSTMScalpingStrategy.
+            cash (float, optional): Initial capital in USD. Defaults to 10000.
+            commission (float, optional): Trading commission as decimal
+                (e.g., 0.0004 = 0.04% per trade). Defaults to 0.0004.
 
         Returns:
-            pd.Series: Backtest results
+            pd.Series: Comprehensive backtest results including metrics like:
+                - Return [%]
+                - Sharpe Ratio
+                - Max Drawdown [%]
+                - Win Rate [%]
+                - # Trades
+                And many more performance metrics.
+
+        Example:
+            >>> runner = BacktestRunner()
+            >>> results = runner.run_backtest(
+            ...     bt_data,
+            ...     strategy_class=LSTMScalpingStrategy,
+            ...     cash=10000,
+            ...     commission=0.0004
+            ... )
+            >>> print(f"Return: {results['Return [%]']:.2f}%")
         """
         self.bt = Backtest(
             data,
@@ -101,7 +164,19 @@ class BacktestRunner:
         return self.results
 
     def print_results(self):
-        """Print backtest results in a formatted way."""
+        """Print backtest results in a formatted, human-readable table.
+
+        Displays key performance metrics including returns, drawdowns,
+        trade statistics, and risk metrics.
+
+        Returns:
+            None
+
+        Example:
+            >>> runner = BacktestRunner()
+            >>> runner.run_backtest(bt_data)
+            >>> runner.print_results()
+        """
         if self.results is None:
             print("No results available. Run a backtest first.")
             return
@@ -132,7 +207,24 @@ class BacktestRunner:
         print("\n" + "=" * 60)
 
     def plot_results(self, save_path='results/backtest_plot.html'):
-        """Generate interactive plot of backtest results."""
+        """Generate and save an interactive HTML plot of backtest results.
+
+        Creates an interactive plot showing equity curve, trades, drawdowns,
+        and other performance visualizations using the backtesting.py plotting.
+
+        Args:
+            save_path (str, optional): Path where the HTML plot will be saved.
+                Defaults to 'results/backtest_plot.html'.
+
+        Returns:
+            None
+
+        Example:
+            >>> runner = BacktestRunner()
+            >>> runner.run_backtest(bt_data)
+            >>> runner.plot_results()
+            >>> runner.plot_results('my_analysis/backtest.html')
+        """
         if self.bt is None:
             print("No backtest available. Run a backtest first.")
             return
@@ -142,16 +234,27 @@ class BacktestRunner:
         print(f"\nBacktest plot saved to {save_path}")
 
     def optimize_strategy(self, data, cash=10000, commission=0.0004):
-        """
-        Optimize strategy parameters using grid search.
+        """Optimize strategy parameters using exhaustive grid search.
+
+        Tests multiple combinations of strategy parameters to find the optimal
+        configuration that maximizes the Sharpe Ratio. This can take several
+        minutes depending on the grid size.
 
         Args:
-            data (pd.DataFrame): Prepared data for backtesting
-            cash (float): Initial capital
-            commission (float): Trading commission
+            data (pd.DataFrame): Prepared data formatted for backtesting.
+            cash (float, optional): Initial capital in USD. Defaults to 10000.
+            commission (float, optional): Trading commission as decimal.
+                Defaults to 0.0004.
 
         Returns:
-            pd.DataFrame: Optimization results
+            pd.Series: Optimal backtest results with the best parameter combination.
+                The optimal parameters are shown in the series.
+
+        Example:
+            >>> runner = BacktestRunner()
+            >>> optimal_results = runner.optimize_strategy(bt_data)
+            >>> print(f"Optimal Sharpe: {optimal_results['Sharpe Ratio']:.2f}")
+            >>> print(f"Best params: {optimal_results._strategy}")
         """
         print("\nOptimizing strategy parameters...")
         print("This may take several minutes...")
@@ -181,7 +284,22 @@ class BacktestRunner:
 
 
 def main():
-    """Run the full backtest pipeline."""
+    """Run the complete backtesting pipeline from data loading to results analysis.
+
+    Executes the full workflow:
+    1. Loads processed data and LSTM predictions
+    2. Prepares data for backtesting
+    3. Runs default strategy backtest
+    4. Compares multiple strategy variants
+    5. Saves results and plots
+
+    Returns:
+        None
+
+    Example:
+        Run from command line:
+        $ python backtest_runner.py
+    """
     print("=" * 60)
     print("CRYPTO SCALPING BOT - BACKTEST")
     print("=" * 60)

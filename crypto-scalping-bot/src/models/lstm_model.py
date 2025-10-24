@@ -14,10 +14,36 @@ import matplotlib.pyplot as plt
 
 
 class LSTMPricePredictor:
-    """LSTM neural network for predicting crypto prices."""
+    """LSTM neural network for predicting cryptocurrency prices.
+
+    This class provides a complete interface for building, training, evaluating,
+    and saving LSTM models for time-series price prediction. It handles model
+    architecture construction, training with callbacks, and performance evaluation.
+
+    Attributes:
+        config (dict): Configuration dictionary from YAML file.
+        model (keras.Model): Compiled LSTM model, None until build_model() is called.
+        history (keras.callbacks.History): Training history, None until train() is called.
+
+    Example:
+        >>> predictor = LSTMPricePredictor()
+        >>> predictor.build_model(input_shape=(60, 15))
+        >>> history = predictor.train(X_train, y_train, X_val, y_val)
+        >>> predictions = predictor.predict(X_test)
+        >>> predictor.save_model()
+    """
 
     def __init__(self, config_path='config/config.yaml'):
-        """Initialize the LSTM model with configuration."""
+        """Initialize the LSTM model with configuration from YAML file.
+
+        Args:
+            config_path (str, optional): Path to the YAML configuration file
+                containing model hyperparameters. Defaults to 'config/config.yaml'.
+
+        Example:
+            >>> predictor = LSTMPricePredictor()
+            >>> predictor = LSTMPricePredictor('custom/config.yaml')
+        """
         with open(config_path, 'r') as f:
             self.config = yaml.safe_load(f)
 
@@ -25,14 +51,25 @@ class LSTMPricePredictor:
         self.history = None
 
     def build_model(self, input_shape):
-        """
-        Build LSTM model architecture.
+        """Build and compile LSTM model architecture with dropout regularization.
+
+        Creates a sequential LSTM model with:
+        - Multiple stacked LSTM layers (configured in config)
+        - Dropout layers for regularization
+        - Dense output layer for regression
+        - Adam optimizer with MSE loss
 
         Args:
-            input_shape (tuple): Shape of input data (timesteps, features)
+            input_shape (tuple): Shape of input sequences as (timesteps, n_features).
+                Example: (60, 15) for 60 time steps with 15 features each.
 
         Returns:
-            keras.Model: Compiled LSTM model
+            keras.Model: Compiled LSTM model ready for training.
+
+        Example:
+            >>> predictor = LSTMPricePredictor()
+            >>> model = predictor.build_model(input_shape=(60, 15))
+            >>> model.summary()
         """
         lstm_units = self.config['model']['lstm_units']
         dropout_rate = self.config['model']['dropout_rate']
@@ -73,17 +110,30 @@ class LSTMPricePredictor:
         return model
 
     def train(self, X_train, y_train, X_val=None, y_val=None):
-        """
-        Train the LSTM model.
+        """Train the LSTM model with early stopping and learning rate scheduling.
+
+        Automatically builds the model if not already built. Uses callbacks for:
+        - Early stopping to prevent overfitting
+        - Learning rate reduction on plateau
+        - Model checkpointing to save best weights
 
         Args:
-            X_train (np.array): Training sequences
-            y_train (np.array): Training targets
-            X_val (np.array): Validation sequences (optional)
-            y_val (np.array): Validation targets (optional)
+            X_train (np.ndarray): Training input sequences with shape
+                (n_samples, timesteps, n_features).
+            y_train (np.ndarray): Training target values with shape (n_samples,).
+            X_val (np.ndarray, optional): Validation sequences. If None, no validation
+                is performed. Defaults to None.
+            y_val (np.ndarray, optional): Validation targets. Required if X_val is
+                provided. Defaults to None.
 
         Returns:
-            keras.callbacks.History: Training history
+            keras.callbacks.History: Training history object containing loss and
+                metrics for each epoch.
+
+        Example:
+            >>> predictor = LSTMPricePredictor()
+            >>> history = predictor.train(X_train, y_train, X_val, y_val)
+            >>> print(f"Final loss: {history.history['loss'][-1]:.4f}")
         """
         if self.model is None:
             input_shape = (X_train.shape[1], X_train.shape[2])
@@ -136,14 +186,24 @@ class LSTMPricePredictor:
         return self.history
 
     def predict(self, X):
-        """
-        Make predictions with the trained model.
+        """Make predictions using the trained LSTM model.
 
         Args:
-            X (np.array): Input sequences
+            X (np.ndarray): Input sequences with shape (n_samples, timesteps, n_features).
+                Must have the same timesteps and features as the training data.
 
         Returns:
-            np.array: Predictions
+            np.ndarray: Predicted values with shape (n_samples, 1). Values are in
+                the same scaled range as the training targets.
+
+        Raises:
+            ValueError: If model hasn't been trained yet.
+
+        Example:
+            >>> predictor = LSTMPricePredictor()
+            >>> predictor.train(X_train, y_train)
+            >>> predictions = predictor.predict(X_test)
+            >>> print(f"Predicted shape: {predictions.shape}")
         """
         if self.model is None:
             raise ValueError("Model not trained. Call train() first.")
@@ -151,15 +211,32 @@ class LSTMPricePredictor:
         return self.model.predict(X, verbose=0)
 
     def evaluate(self, X_test, y_test):
-        """
-        Evaluate model performance on test data.
+        """Evaluate model performance on test data with multiple metrics.
+
+        Calculates comprehensive evaluation metrics including:
+        - MSE (Mean Squared Error)
+        - MAE (Mean Absolute Error)
+        - RMSE (Root Mean Squared Error)
+        - Direction accuracy (percentage of correct up/down predictions)
 
         Args:
-            X_test (np.array): Test sequences
-            y_test (np.array): Test targets
+            X_test (np.ndarray): Test input sequences with shape
+                (n_samples, timesteps, n_features).
+            y_test (np.ndarray): Test target values with shape (n_samples,).
 
         Returns:
-            dict: Evaluation metrics
+            dict: Dictionary containing evaluation metrics:
+                - 'mse': Mean squared error
+                - 'mae': Mean absolute error
+                - 'rmse': Root mean squared error
+                - 'direction_accuracy': Percentage of correct directional predictions
+
+        Example:
+            >>> predictor = LSTMPricePredictor()
+            >>> predictor.train(X_train, y_train)
+            >>> metrics = predictor.evaluate(X_test, y_test)
+            >>> print(f"RMSE: {metrics['rmse']:.4f}")
+            >>> print(f"Direction Accuracy: {metrics['direction_accuracy']:.2%}")
         """
         predictions = self.predict(X_test)
 
@@ -186,7 +263,24 @@ class LSTMPricePredictor:
         return metrics
 
     def plot_training_history(self, save_path='models/training_history.png'):
-        """Plot training and validation loss."""
+        """Plot and save training and validation loss/MAE curves.
+
+        Creates a two-panel plot showing loss (MSE) and MAE over training epochs.
+        Includes both training and validation curves if validation data was used.
+
+        Args:
+            save_path (str, optional): Path where the plot image will be saved.
+                Defaults to 'models/training_history.png'.
+
+        Returns:
+            None
+
+        Example:
+            >>> predictor = LSTMPricePredictor()
+            >>> predictor.train(X_train, y_train, X_val, y_val)
+            >>> predictor.plot_training_history()
+            >>> predictor.plot_training_history('results/my_plot.png')
+        """
         if self.history is None:
             print("No training history available.")
             return
@@ -219,19 +313,57 @@ class LSTMPricePredictor:
         plt.close()
 
     def save_model(self, filepath='models/lstm_model.keras'):
-        """Save the trained model."""
+        """Save the trained model to disk in Keras format.
+
+        Args:
+            filepath (str, optional): Path where model will be saved.
+                Defaults to 'models/lstm_model.keras'.
+
+        Returns:
+            None
+
+        Example:
+            >>> predictor = LSTMPricePredictor()
+            >>> predictor.train(X_train, y_train)
+            >>> predictor.save_model()
+            >>> predictor.save_model('models/best_model_v2.keras')
+        """
         Path(filepath).parent.mkdir(exist_ok=True)
         self.model.save(filepath)
         print(f"Model saved to {filepath}")
 
     def load_model(self, filepath='models/lstm_model.keras'):
-        """Load a trained model."""
+        """Load a previously trained model from disk.
+
+        Args:
+            filepath (str, optional): Path to the saved model file.
+                Defaults to 'models/lstm_model.keras'.
+
+        Returns:
+            None
+
+        Example:
+            >>> predictor = LSTMPricePredictor()
+            >>> predictor.load_model()
+            >>> predictions = predictor.predict(X_new)
+        """
         self.model = keras.models.load_model(filepath)
         print(f"Model loaded from {filepath}")
 
 
 def main():
-    """Train the LSTM model."""
+    """Complete LSTM model training pipeline.
+
+    Loads data, preprocesses it, splits into train/val/test sets,
+    trains the LSTM model, evaluates performance, and saves artifacts.
+
+    Returns:
+        None
+
+    Example:
+        Run from command line:
+        $ python lstm_model.py
+    """
     import sys
     from pathlib import Path
     sys.path.append(str(Path(__file__).parent.parent))

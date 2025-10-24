@@ -29,7 +29,19 @@ class LSTMScalpingStrategy(Strategy):
     position_size = 0.95         # Use 95% of available equity
 
     def init(self):
-        """Initialize strategy with indicators and predictions."""
+        """Initialize strategy indicators and calculate prediction signals.
+
+        Called once by backtesting.py framework before strategy execution.
+        Sets up prediction strength signals and technical indicator references.
+
+        Returns:
+            None
+
+        Note:
+            This method is automatically called by the backtesting framework.
+            The data must already contain 'Predicted_Price', 'RSI', 'MACD',
+            and 'MACD_Signal' columns.
+        """
         # Get predictions from the dataframe
         # These should be added to the data before backtesting
         self.predictions = self.data.Predicted_Price
@@ -46,7 +58,20 @@ class LSTMScalpingStrategy(Strategy):
         self.macd_signal = self.data.MACD_Signal
 
     def next(self):
-        """Execute strategy logic on each bar."""
+        """Execute strategy logic for each new candlestick bar.
+
+        Called by backtesting.py framework for each time step. Evaluates:
+        1. Current position management (stop-loss/take-profit)
+        2. Long entry signals
+        3. Short entry signals
+
+        Returns:
+            None
+
+        Note:
+            This method is automatically called by the backtesting framework
+            for each bar in the historical data.
+        """
         # Skip if not enough data
         if len(self.data) < 2:
             return
@@ -70,13 +95,27 @@ class LSTMScalpingStrategy(Strategy):
             self._open_short()
 
     def _should_go_long(self, prediction, rsi, macd, macd_signal):
-        """
-        Determine if we should open a long position.
+        """Determine if conditions are met to open a long position.
 
-        Long conditions:
-        - LSTM predicts price increase above threshold
-        - RSI not overbought
-        - MACD bullish (above signal line or crossing above)
+        Long entry conditions (all must be true):
+        - LSTM predicts price increase above prediction_threshold
+        - RSI below overbought level (not overheated)
+        - MACD above signal line (bullish momentum)
+
+        Args:
+            prediction (float): Predicted percentage price change from LSTM.
+            rsi (float): Current RSI value (0-100).
+            macd (float): Current MACD line value.
+            macd_signal (float): Current MACD signal line value.
+
+        Returns:
+            bool: True if all long entry conditions are met, False otherwise.
+
+        Example:
+            >>> strategy._should_go_long(0.003, 55, 10.5, 9.2)
+            True
+            >>> strategy._should_go_long(0.001, 75, 10.5, 9.2)  # RSI too high
+            False
         """
         prediction_bullish = prediction > self.prediction_threshold
         rsi_ok = rsi < self.rsi_overbought
@@ -85,13 +124,27 @@ class LSTMScalpingStrategy(Strategy):
         return prediction_bullish and rsi_ok and macd_bullish
 
     def _should_go_short(self, prediction, rsi, macd, macd_signal):
-        """
-        Determine if we should open a short position.
+        """Determine if conditions are met to open a short position.
 
-        Short conditions:
-        - LSTM predicts price decrease below threshold
-        - RSI not oversold
-        - MACD bearish (below signal line or crossing below)
+        Short entry conditions (all must be true):
+        - LSTM predicts price decrease below negative prediction_threshold
+        - RSI above oversold level (not oversold)
+        - MACD below signal line (bearish momentum)
+
+        Args:
+            prediction (float): Predicted percentage price change from LSTM.
+            rsi (float): Current RSI value (0-100).
+            macd (float): Current MACD line value.
+            macd_signal (float): Current MACD signal line value.
+
+        Returns:
+            bool: True if all short entry conditions are met, False otherwise.
+
+        Example:
+            >>> strategy._should_go_short(-0.003, 45, 8.2, 9.5)
+            True
+            >>> strategy._should_go_short(-0.003, 25, 8.2, 9.5)  # RSI too low
+            False
         """
         prediction_bearish = prediction < -self.prediction_threshold
         rsi_ok = rsi > self.rsi_oversold
@@ -100,7 +153,19 @@ class LSTMScalpingStrategy(Strategy):
         return prediction_bearish and rsi_ok and macd_bearish
 
     def _open_long(self):
-        """Open a long position with risk management."""
+        """Open a long position with automatic stop-loss and take-profit orders.
+
+        Calculates position size based on position_size parameter and sets:
+        - Stop-loss at entry_price * (1 - stop_loss_pct)
+        - Take-profit at entry_price * (1 + take_profit_pct)
+
+        Returns:
+            None
+
+        Note:
+            Uses the backtesting.py framework's buy() method with automatic
+            stop-loss and take-profit order placement.
+        """
         # Calculate position size based on available equity
         size = self.position_size
 
@@ -112,7 +177,19 @@ class LSTMScalpingStrategy(Strategy):
         self.buy(size=size, sl=sl_price, tp=tp_price)
 
     def _open_short(self):
-        """Open a short position with risk management."""
+        """Open a short position with automatic stop-loss and take-profit orders.
+
+        Calculates position size based on position_size parameter and sets:
+        - Stop-loss at entry_price * (1 + stop_loss_pct)
+        - Take-profit at entry_price * (1 - take_profit_pct)
+
+        Returns:
+            None
+
+        Note:
+            Uses the backtesting.py framework's sell() method with automatic
+            stop-loss and take-profit order placement.
+        """
         # Calculate position size based on available equity
         size = self.position_size
 
@@ -124,8 +201,18 @@ class LSTMScalpingStrategy(Strategy):
         self.sell(size=size, sl=sl_price, tp=tp_price)
 
     def _manage_position(self):
-        """
-        Manage existing position with trailing stop and exit conditions.
+        """Manage existing positions with dynamic exit conditions.
+
+        Closes positions early if LSTM prediction reverses significantly:
+        - Exit long if prediction becomes strongly bearish
+        - Exit short if prediction becomes strongly bullish
+
+        Returns:
+            None
+
+        Note:
+            This provides an additional exit mechanism beyond the automatic
+            stop-loss and take-profit orders set at position entry.
         """
         current_prediction = self.price_change_predicted[-1]
 
