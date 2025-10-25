@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "description": "Improves user prompts by adding clarifying questions",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ${CLAUDE_PLUGIN_ROOT}/scripts/improve-prompt.py",
+            "description": "Run the prompt improvement script"
+          }
+        ]
+      }
+    ]
+  }
+}

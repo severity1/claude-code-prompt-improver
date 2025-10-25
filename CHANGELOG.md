@@ -2,7 +2,21 @@
 
 All notable changes to the Claude Code Prompt Improver project.
 
-## [0.3.0] - 2025-01-20
+## [0.3.1] - 2025-10-24
+
+### Added
+- Local development installation section in README with .dev-marketplace setup
+- Hooks field in plugin.json to enable automatic hook installation
+
+### Changed
+- Simplified plugin.json metadata (removed homepage, repository, license, keywords)
+- Updated README installation instructions (removed marketplace section, not yet available)
+
+### Removed
+- marketplace.json from .claude-plugin/ (plugin not ready for public marketplace)
+- Unnecessary matcher field from hooks.json
+
+## [0.3.0] - 2025-10-20
 
 ### Added
 - Dynamic research planning based on vague prompts via TodoWrite
@@ -32,7 +46,7 @@ All notable changes to the Claude Code Prompt Improver project.
 - Step 4 explicitly requires using "research findings (not your training)" to prevent premature assumptions
 - Specified recommended tools: Task/Explore for codebase, WebSearch for online research, Read/Grep as needed
 
-## [0.2.0] - 2025-01-20
+## [0.2.0] - 2025-10-20
 
 ### Added
 - Demo gif showing hook in action
@@ -47,7 +61,7 @@ All notable changes to the Claude Code Prompt Improver project.
 ### Fixed
 - LICENSE copyright updated to use GitHub handle
 
-## [0.1.0] - 2025-01-18
+## [0.1.0] - 2025-10-18
 
 ### Added
 - Main-session evaluation approach (vs. subagent)

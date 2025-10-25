@@ -1,0 +1,10 @@
+{
+  "name": "prompt-improver",
+  "description": "Enriches vague prompts with research-based clarifying questions before Claude Code executes them",
+  "version": "0.3.1",
+  "author": {
+    "name": "severity1"
+  },
+  "license": "MIT",
+  "hooks": "./hooks/hooks.json"
+}

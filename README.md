@@ -41,9 +41,11 @@ sequenceDiagram
 
 **Requirements:** Claude Code 2.0.22+ (uses AskUserQuestion tool for targeted clarifying questions)
 
+### Manual Installation
+
 **1. Copy the hook:**
 ```bash
-cp hooks/improve-prompt.py ~/.claude/hooks/
+cp scripts/improve-prompt.py ~/.claude/hooks/
 chmod +x ~/.claude/hooks/improve-prompt.py
 ```
 
@@ -65,7 +67,7 @@ chmod +x ~/.claude/hooks/improve-prompt.py
 }
 ```
 
-Done. The hook runs automatically on every prompt.
+> **Note:** Plugin installation is not currently supported due to a bug where UserPromptSubmit hooks from plugins match but never execute ([#10225](https://github.com/anthropics/claude-code/issues/10225)). Manual installation via `settings.json` is the only working method.
 
 ## Usage
 
