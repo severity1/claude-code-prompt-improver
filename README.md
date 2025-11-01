@@ -23,7 +23,7 @@ sequenceDiagram
     participant Project
 
     User->>Hook: "fix the bug"
-    Hook->>Claude: Wrapped with evaluation instructions (~300 tokens)
+    Hook->>Claude: Wrapped with evaluation instructions (~400 tokens)
     Claude->>Claude: Evaluate using conversation history
     alt Vague prompt
         Claude->>Claude: Create research plan (TodoWrite)
@@ -119,7 +119,7 @@ Claude proceeds immediately without questions.
 **Hook (improve-prompt.py):**
 - Intercepts via stdin/stdout JSON
 - Bypasses: `*`, `/`, `#` prefixes
-- Wraps other prompts with evaluation instructions (~300 tokens)
+- Wraps other prompts with evaluation instructions (~400 tokens)
 
 **Main Claude Session:**
 - Evaluates using conversation history first
@@ -136,8 +136,8 @@ Claude proceeds immediately without questions.
 
 ## Token Overhead
 
-- **Per wrapped prompt:** ~300 tokens
-- **30-message session:** ~9k tokens (~4.5% of 200k context)
+- **Per wrapped prompt:** ~400 tokens
+- **30-message session:** ~12k tokens (~6% of 200k context)
 - **Trade-off:** Small overhead for better first-attempt results
 
 ## FAQ

@@ -2,6 +2,27 @@
 
 All notable changes to the Claude Code Prompt Improver project.
 
+## [0.4.0] - 2025-11-01
+
+### Added
+- XML structure throughout evaluation wrapper for improved Claude parsing
+- GOLDEN framework section (Goal, Output, Limits, Data, Evaluation) for clearer evaluation criteria
+- Parallel research execution guidance to leverage Sonnet 4.5's parallel tool calling
+- Token budget awareness and context management section to prevent context exhaustion
+- XML escaping function for special characters (`<`, `>`, `&`) in user prompts
+
+### Changed
+- Converted plain text evaluation instructions to XML-tagged structure
+- Token overhead increased to ~400 tokens (from ~300) due to enhanced framework and guidance
+- Enhanced research execution instructions with parallel vs. sequential tool usage examples
+- Added context management instructions to keep research concise and high-signal
+
+### Improved
+- Instruction-following accuracy via Claude's exceptional XML parsing capabilities
+- Research phase efficiency through parallel tool calling guidance
+- Context window management with explicit token budget monitoring
+- Evaluation structure clarity using GOLDEN framework pattern
+
 ## [0.3.1] - 2025-10-24
 
 ### Added
