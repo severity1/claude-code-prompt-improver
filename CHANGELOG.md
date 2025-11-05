@@ -12,11 +12,13 @@ All notable changes to the Claude Code Prompt Improver project.
 - Hook output format switched to JSON following Claude Code official specification
 - Output structure: `{"hookSpecificOutput": {"hookEventName": "UserPromptSubmit", "additionalContext": "..."}}`
 - Exit code remains 0 for all success paths
+- Local plugin installation now uses marketplace commands instead of manual settings.json editing
 
 ### Added
-- Local plugin installation documentation as recommended development method
+- Marketplace installation as recommended Option 1 (via severity1/claude-code-marketplace)
+- Local plugin installation documentation using marketplace commands as Option 2 (recommended for development)
+- Manual hook installation as Option 3 (fallback method)
 - Verification instructions using `/plugin` command
-- Two installation options in README: plugin (Option 1) and manual (Option 2)
 
 ## [0.3.1] - 2025-10-24
 

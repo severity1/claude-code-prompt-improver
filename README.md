@@ -41,7 +41,23 @@ sequenceDiagram
 
 **Requirements:** Claude Code 2.0.22+ (uses AskUserQuestion tool for targeted clarifying questions)
 
-### Option 1: Local Plugin Installation (Recommended for Development)
+### Option 1: Via Marketplace (Recommended)
+
+**1. Add the marketplace:**
+```bash
+claude plugin marketplace add severity1/claude-code-marketplace
+```
+
+**2. Install the plugin:**
+```bash
+claude plugin install prompt-improver@claude-code-marketplace
+```
+
+**3. Restart Claude Code**
+
+Verify installation with `/plugin` command. You should see the prompt-improver plugin listed.
+
+### Option 2: Local Plugin Installation (Recommended for Development)
 
 **1. Clone the repository:**
 ```bash
@@ -49,27 +65,23 @@ git clone https://github.com/severity1/claude-code-prompt-improver.git
 cd claude-code-prompt-improver
 ```
 
-**2. Update `~/.claude/settings.json`:**
-```json
-{
-  "enabledPlugins": {
-    "prompt-improver@local-dev": true
-  },
-  "marketplaces": [
-    {
-      "path": "/absolute/path/to/claude-code-prompt-improver/.dev-marketplace/.claude-plugin/marketplace.json"
-    }
-  ]
-}
+**2. Add the local marketplace:**
+```bash
+claude plugin marketplace add /absolute/path/to/claude-code-prompt-improver/.dev-marketplace/.claude-plugin/marketplace.json
 ```
 
 Replace `/absolute/path/to/` with the actual path where you cloned the repository.
 
-**3. Restart Claude Code**
+**3. Install the plugin:**
+```bash
+claude plugin install prompt-improver@local-dev
+```
+
+**4. Restart Claude Code**
 
 Verify installation with `/plugin` command. You should see "1 plugin available, 1 already installed".
 
-### Option 2: Manual Installation
+### Option 3: Manual Installation
 
 **1. Copy the hook:**
 ```bash
