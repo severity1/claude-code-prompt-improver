@@ -41,7 +41,35 @@ sequenceDiagram
 
 **Requirements:** Claude Code 2.0.22+ (uses AskUserQuestion tool for targeted clarifying questions)
 
-### Manual Installation
+### Option 1: Local Plugin Installation (Recommended for Development)
+
+**1. Clone the repository:**
+```bash
+git clone https://github.com/severity1/claude-code-prompt-improver.git
+cd claude-code-prompt-improver
+```
+
+**2. Update `~/.claude/settings.json`:**
+```json
+{
+  "enabledPlugins": {
+    "prompt-improver@local-dev": true
+  },
+  "marketplaces": [
+    {
+      "path": "/absolute/path/to/claude-code-prompt-improver/.dev-marketplace/.claude-plugin/marketplace.json"
+    }
+  ]
+}
+```
+
+Replace `/absolute/path/to/` with the actual path where you cloned the repository.
+
+**3. Restart Claude Code**
+
+Verify installation with `/plugin` command. You should see "1 plugin available, 1 already installed".
+
+### Option 2: Manual Installation
 
 **1. Copy the hook:**
 ```bash
@@ -66,8 +94,6 @@ chmod +x ~/.claude/hooks/improve-prompt.py
   }
 }
 ```
-
-> **Note:** Plugin installation is not currently supported due to a bug where UserPromptSubmit hooks from plugins match but never execute ([#10225](https://github.com/anthropics/claude-code/issues/10225)). Manual installation via `settings.json` is the only working method.
 
 ## Usage
 
