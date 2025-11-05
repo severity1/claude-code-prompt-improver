@@ -2,6 +2,22 @@
 
 All notable changes to the Claude Code Prompt Improver project.
 
+## [0.3.2] - 2025-11-05
+
+### Fixed
+- Plugin hook registration by correcting marketplace source path from `./../` to `./../../` to properly resolve to project root
+- Hooks now register correctly when installed as plugin (previously showed "Registered 0 hooks from 1 plugins")
+
+### Changed
+- Hook output format switched to JSON following Claude Code official specification
+- Output structure: `{"hookSpecificOutput": {"hookEventName": "UserPromptSubmit", "additionalContext": "..."}}`
+- Exit code remains 0 for all success paths
+
+### Added
+- Local plugin installation documentation as recommended development method
+- Verification instructions using `/plugin` command
+- Two installation options in README: plugin (Option 1) and manual (Option 2)
+
 ## [0.3.1] - 2025-10-24
 
 ### Added

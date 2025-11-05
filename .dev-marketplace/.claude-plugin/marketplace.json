@@ -6,7 +6,7 @@
   "plugins": [
     {
       "name": "prompt-improver",
-      "source": "./../"
+      "source": "./../../"
     }
   ]
 }

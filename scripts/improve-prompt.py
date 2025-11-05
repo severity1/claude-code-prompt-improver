@@ -19,6 +19,16 @@ prompt = input_data.get("prompt", "")
 # Escape quotes in prompt for safe embedding in wrapped instructions
 escaped_prompt = prompt.replace("\\", "\\\\").replace('"', '\\"')
 
+def output_json(text):
+    """Output text in UserPromptSubmit JSON format"""
+    output = {
+        "hookSpecificOutput": {
+            "hookEventName": "UserPromptSubmit",
+            "additionalContext": text
+        }
+    }
+    print(json.dumps(output))
+
 # Check for bypass conditions
 # 1. Explicit bypass with * prefix
 # 2. Slash commands (built-in or custom)
@@ -26,17 +36,17 @@ escaped_prompt = prompt.replace("\\", "\\\\").replace('"', '\\"')
 if prompt.startswith("*"):
     # User explicitly bypassed improvement - remove * prefix
     clean_prompt = prompt[1:].strip()
-    print(clean_prompt)
+    output_json(clean_prompt)
     sys.exit(0)
 
 if prompt.startswith("/"):
     # Slash command - pass through unchanged
-    print(prompt)
+    output_json(prompt)
     sys.exit(0)
 
 if prompt.startswith("#"):
     # Memorize feature - pass through unchanged
-    print(prompt)
+    output_json(prompt)
     sys.exit(0)
 
 # Build the improvement wrapper
@@ -68,5 +78,5 @@ ONLY ASK if genuinely vague (e.g., "fix the bug" with no context):
   2. Use the answers to execute the original user request
 """
 
-print(wrapped_prompt)
+output_json(wrapped_prompt)
 sys.exit(0)
