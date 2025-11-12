@@ -6,12 +6,15 @@ A UserPromptSubmit hook that enriches vague prompts before Claude Code executes 
 
 ## What It Does
 
-Intercepts prompts and wraps them with evaluation instructions. Claude then:
+Intercepts prompts and evaluates clarity. Claude then:
 - Checks if the prompt is clear using conversation history
-- For vague prompts: creates a research plan, gathers context, asks 1-6 grounded questions
+- For clear prompts: proceeds immediately (zero overhead)
+- For vague prompts: invokes the `prompt-improver` skill to create research plan, gather context, and ask 1-6 grounded questions
 - Proceeds with original request using the clarification
 
 **Result:** Better outcomes on the first try, without back-and-forth.
+
+**v0.4.0 Update:** Skill-based architecture with hook-level evaluation achieves 31% token reduction. Clear prompts have zero skill overhead, vague prompts get comprehensive research and questioning via the skill.
 
 ## How It Works
 
@@ -20,12 +23,15 @@ sequenceDiagram
     participant User
     participant Hook
     participant Claude
+    participant Skill
     participant Project
 
     User->>Hook: "fix the bug"
-    Hook->>Claude: Wrapped with evaluation instructions (~300 tokens)
+    Hook->>Claude: Evaluation prompt (~189 tokens)
     Claude->>Claude: Evaluate using conversation history
     alt Vague prompt
+        Claude->>Skill: Invoke prompt-improver skill
+        Skill-->>Claude: Research and question guidance
         Claude->>Claude: Create research plan (TodoWrite)
         Claude->>Project: Execute research (codebase, web, docs)
         Project-->>Claude: Context
@@ -33,7 +39,7 @@ sequenceDiagram
         User->>Claude: Answer
         Claude->>Claude: Execute original request with answers
     else Clear prompt
-        Claude->>Claude: Proceed immediately
+        Claude->>Claude: Proceed immediately (no skill load)
     end
 ```
 
@@ -154,17 +160,44 @@ Claude proceeds immediately without questions.
 
 ## Architecture
 
-**Hook (improve-prompt.py):**
-- Intercepts via stdin/stdout JSON
-- Bypasses: `*`, `/`, `#` prefixes
-- Wraps other prompts with evaluation instructions (~300 tokens)
+**v0.4.0:** Skill-based architecture with hook-level evaluation.
 
-**Main Claude Session:**
-- Evaluates using conversation history first
-- For vague prompts: creates dynamic research plan (TodoWrite)
-- Executes research using appropriate methods (codebase, web, docs, etc.)
-- Asks grounded questions (max 1-6) via AskUserQuestion tool
-- Executes original request using the answers
+**Hook (scripts/improve-prompt.py) - Evaluation Orchestrator:**
+- Intercepts via stdin/stdout JSON (~70 lines)
+- Handles bypass prefixes: `*`, `/`, `#`
+- Wraps prompts with evaluation instructions (~189 tokens)
+- Claude evaluates clarity using conversation history
+- If vague: Instructs Claude to invoke `prompt-improver` skill
+
+**Skill (skills/prompt-improver/) - Research & Question Logic:**
+- **SKILL.md**: Research and question workflow (~170 lines)
+  - Assumes prompt already determined vague by hook
+  - 4-phase process: Research → Questions → Clarify → Execute
+  - Links to reference files for progressive disclosure
+- **references/**: Detailed guides loaded on-demand
+  - `question-patterns.md`: Question templates (200-300 lines)
+  - `research-strategies.md`: Context gathering (300-400 lines)
+  - `examples.md`: Real transformations (200-300 lines)
+
+**Flow for Clear Prompts:**
+1. Hook wraps with evaluation prompt (~189 tokens)
+2. Claude evaluates: prompt is clear
+3. Claude proceeds immediately (no skill invocation)
+4. **Total overhead: ~189 tokens**
+
+**Flow for Vague Prompts:**
+1. Hook wraps with evaluation prompt (~189 tokens)
+2. Claude evaluates: prompt is vague
+3. Claude invokes `prompt-improver` skill
+4. Skill loads research/question guidance
+5. Claude creates research plan, gathers context, asks questions
+6. **Total overhead: ~189 tokens + skill load**
+
+**Progressive Disclosure Benefits:**
+- Clear prompts: Never load skill (zero skill overhead)
+- Vague prompts: Only load skill and relevant reference files
+- Detailed guidance available without bloating all prompts
+- Zero context penalty for unused reference materials
 
 **Why main session (not subagent)?**
 - Has conversation history
@@ -172,11 +205,31 @@ Claude proceeds immediately without questions.
 - More transparent
 - More efficient overall
 
+**Manual Skill Invocation:**
+You can also invoke the skill manually without the hook:
+```
+Use the prompt-improver skill to research and clarify: "add authentication"
+```
+
 ## Token Overhead
 
-- **Per wrapped prompt:** ~300 tokens
-- **30-message session:** ~9k tokens (~4.5% of 200k context)
-- **Trade-off:** Small overhead for better first-attempt results
+**v0.4.0 Update:** 31% reduction through hook-level evaluation
+
+- **Per prompt (v0.4.0):** ~189 tokens (evaluation prompt)
+- **Per prompt (v0.3.x):** ~275 tokens (embedded evaluation logic)
+- **Reduction:** ~86 tokens saved per prompt (31% decrease)
+- **30-message session:** ~5.7k tokens (~2.8% of 200k context, down from 4.1%)
+- **Trade-off:** Minimal overhead for better first-attempt results
+
+**Clear prompts benefit:**
+- Evaluation happens in hook (~189 tokens)
+- Claude proceeds immediately (no skill load)
+- Zero skill overhead for clear prompts
+
+**Vague prompts:**
+- Evaluation in hook (~189 tokens)
+- Skill loads only when needed for research/questions
+- Progressive disclosure: reference files load on-demand
 
 ## FAQ
 
