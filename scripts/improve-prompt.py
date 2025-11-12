@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 """
 Claude Code Prompt Improver Hook
-Intercepts user prompts and evaluates if they need enrichment before execution.
-Uses main session context for intelligent, non-pedantic evaluation.
+Evaluates prompts for clarity and invokes the prompt-improver skill for vague cases.
 """
 import json
 import sys
@@ -16,7 +15,7 @@ except json.JSONDecodeError as e:
 
 prompt = input_data.get("prompt", "")
 
-# Escape quotes in prompt for safe embedding in wrapped instructions
+# Escape quotes in prompt for safe embedding
 escaped_prompt = prompt.replace("\\", "\\\\").replace('"', '\\"')
 
 def output_json(text):
@@ -49,7 +48,7 @@ if prompt.startswith("#"):
     output_json(prompt)
     sys.exit(0)
 
-# Build the improvement wrapper
+# Build the evaluation wrapper
 wrapped_prompt = f"""PROMPT EVALUATION
 
 Original user request: "{escaped_prompt}"
@@ -59,24 +58,14 @@ EVALUATE: Is this prompt clear enough to execute, or does it need enrichment?
 PROCEED IMMEDIATELY if:
 - Detailed/specific OR you have sufficient context OR can infer intent
 
-ONLY ASK if genuinely vague (e.g., "fix the bug" with no context):
-- CRITICAL (NON-NEGOTIABLE) RULES:
-  - Trust user intent by default. Check conversation history before doing research.
-  - Do not rely on base knowledge.
-  - Never skip Phase 1. Research before asking.
-  - Don't announce evaluation - just proceed or ask.
+ONLY USE SKILL if genuinely vague (e.g., "fix the bug" with no context):
+- If vague:
+  1. First, preface with brief note: "Hey! The Prompt Improver Hook flagged your prompt as a bit vague because [specific reason: ambiguous scope/missing context/unclear target/etc]."
+  2. Then use the prompt-improver skill to research and generate clarifying questions
+- The skill will guide you through research, question generation, and execution
+- Trust user intent by default. Check conversation history before using the skill.
 
-- PHASE 1 - RESEARCH (DO NOT SKIP):
-  1. Preface with brief note: "Prompt Improver Hook is seeking clarification because [specific reason: ambiguous scope/missing context/unclear requirements/etc]"
-  2. Create research plan with TodoWrite: Ask yourself "What do I need to research to clarify this vague request?" Research WHAT NEEDS CLARIFICATION, not just the project. Use available tools: Task/Explore for codebase, WebSearch for online research (current info, common approaches, best practices, typical architectures), Read/Grep as needed
-  3. Execute research
-  4. Use research findings (not your training) to formulate grounded questions with specific options
-  5. Mark completed
-
-- PHASE 2 - ASK (ONLY AFTER PHASE 1):
-  1. Use AskUserQuestion tool with max 1-6 questions offering specific options from your research
-  2. Use the answers to execute the original user request
-"""
+If clear, proceed with the original request. If vague, invoke the skill."""
 
 output_json(wrapped_prompt)
 sys.exit(0)
