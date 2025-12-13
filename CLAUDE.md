@@ -53,8 +53,9 @@ A UserPromptSubmit hook that enriches vague prompts before Claude Code executes 
   - Integration tests: `pytest tests/test_integration.py`
 
 **Installation:**
+- Add marketplace: `claude plugin marketplace add severity1/severity1-marketplace`
 - Via marketplace: `claude plugin install prompt-improver@severity1-marketplace`
-- Local dev: `claude plugin install prompt-improver@local-dev`
+- Local dev: `claude plugin marketplace add /path/to/claude-code-prompt-improver/.dev-marketplace/.claude-plugin/marketplace.json` then `claude plugin install prompt-improver@local-dev`
 - Manual hook: `cp scripts/improve-prompt.py ~/.claude/hooks/ && chmod +x ~/.claude/hooks/improve-prompt.py`
 <!-- END AUTO-MANAGED -->
 
