@@ -2,6 +2,12 @@
 
 All notable changes to the Claude Code Prompt Improver project.
 
+## [0.5.0] - 2025-12-13
+
+### Changed
+- Renamed marketplace from `claude-code-marketplace` to `severity1-marketplace`
+- Updated installation instructions to use new marketplace name
+
 ## [0.4.0] - 2025-11-12
 
 ### Major Changes - Skill-Based Architecture with Hook-Level Evaluation
@@ -90,7 +96,7 @@ All notable changes to the Claude Code Prompt Improver project.
 - Local plugin installation now uses marketplace commands instead of manual settings.json editing
 
 ### Added
-- Marketplace installation as recommended Option 1 (via severity1/claude-code-marketplace)
+- Marketplace installation as recommended Option 1 (via severity1/severity1-marketplace)
 - Local plugin installation documentation using marketplace commands as Option 2 (recommended for development)
 - Manual hook installation as Option 3 (fallback method)
 - Verification instructions using `/plugin` command
