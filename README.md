@@ -51,12 +51,12 @@ sequenceDiagram
 
 **1. Add the marketplace:**
 ```bash
-claude plugin marketplace add severity1/claude-code-marketplace
+claude plugin marketplace add severity1/severity1-marketplace
 ```
 
 **2. Install the plugin:**
 ```bash
-claude plugin install prompt-improver@claude-code-marketplace
+claude plugin install prompt-improver@severity1-marketplace
 ```
 
 **3. Restart Claude Code**
