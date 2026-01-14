@@ -45,7 +45,11 @@ sequenceDiagram
 
 ## Installation
 
-**Requirements:** Claude Code 2.0.22+ (uses AskUserQuestion tool for targeted clarifying questions)
+**Requirements:**
+- Claude Code 2.0.22+ (uses AskUserQuestion tool for targeted clarifying questions)
+- Python 3.10+
+
+> **Windows users:** The plugin uses the Python Launcher (`py -3`) which comes with standard Python installations. Ensure Python is installed from [python.org](https://python.org).
 
 ### Option 1: Via Marketplace (Recommended)
 
@@ -96,6 +100,8 @@ chmod +x ~/.claude/hooks/improve-prompt.py
 ```
 
 **2. Update `~/.claude/settings.json`:**
+
+On macOS/Linux:
 ```json
 {
   "hooks": {
@@ -105,6 +111,24 @@ chmod +x ~/.claude/hooks/improve-prompt.py
           {
             "type": "command",
             "command": "python3 ~/.claude/hooks/improve-prompt.py"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+On Windows:
+```json
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "py -3 -u \"~/.claude/hooks/improve-prompt.py\""
           }
         ]
       }

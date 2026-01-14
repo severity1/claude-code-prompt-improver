@@ -6,7 +6,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 ${CLAUDE_PLUGIN_ROOT}/scripts/improve-prompt.py",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/run-hook.sh\"",
+            "timeout": 10,
             "description": "Run the prompt improvement script"
           }
         ]
