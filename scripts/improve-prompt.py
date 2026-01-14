@@ -6,11 +6,19 @@ Evaluates prompts for clarity and invokes the prompt-improver skill for vague ca
 import json
 import sys
 
+# Handle Windows stdin encoding
+if sys.platform == "win32":
+    import io
+    sys.stdin = io.TextIOWrapper(sys.stdin.buffer, encoding="utf-8")
+
 # Load input from stdin
 try:
     input_data = json.load(sys.stdin)
 except json.JSONDecodeError as e:
     print(f"Error: Invalid JSON input: {e}", file=sys.stderr)
+    sys.exit(1)
+except Exception as e:
+    print(f"Error reading input: {e}", file=sys.stderr)
     sys.exit(1)
 
 prompt = input_data.get("prompt", "")
@@ -26,7 +34,7 @@ def output_json(text):
             "additionalContext": text
         }
     }
-    print(json.dumps(output))
+    print(json.dumps(output), flush=True)
 
 # Check for bypass conditions
 # 1. Explicit bypass with * prefix

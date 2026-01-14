@@ -6,7 +6,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 ${CLAUDE_PLUGIN_ROOT}/scripts/improve-prompt.py",
+            "command": "py -3 -u \"${CLAUDE_PLUGIN_ROOT}/scripts/improve-prompt.py\"",
+            "timeout": 10,
             "description": "Run the prompt improvement script"
           }
         ]
