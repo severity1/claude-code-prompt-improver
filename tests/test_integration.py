@@ -36,8 +36,8 @@ def test_plugin_configuration():
 
     config = json.loads(PLUGIN_JSON.read_text())
 
-    # Check version is 0.5.0
-    assert config["version"] == "0.5.0", f"Expected version 0.5.0, got {config['version']}"
+    # Check version is 0.5.1
+    assert config["version"] == "0.5.1", f"Expected version 0.5.1, got {config['version']}"
 
     # Check skills field exists
     assert "skills" in config, "Missing 'skills' field in plugin.json"
