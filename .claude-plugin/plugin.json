@@ -1,7 +1,7 @@
 {
   "name": "prompt-improver",
   "description": "Intelligent prompt optimization using skill-based architecture. Enriches vague prompts with research-based clarifying questions before Claude Code executes them",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "author": {
     "name": "severity1"
   },
