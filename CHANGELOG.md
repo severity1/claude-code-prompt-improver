@@ -12,6 +12,17 @@ All notable changes to the Claude Code Prompt Improver project.
 - README "Why main session?" section replaced with "Research dispatch model" doctrine
 - Bumped plugin version to 0.5.2
 
+## [0.5.1] - 2026-02-14
+
+### Added
+- Windows compatibility: `python3 || python` fallback in hook command
+- Auto-memory configuration for CLAUDE.md maintenance
+- Git insights and best practices sections in CLAUDE.md
+
+### Changed
+- Refreshed CLAUDE.md to auto-memory format, removing ephemeral data (line counts, token counts)
+- Aligned CLAUDE.md section headings with auto-memory template
+
 ## [0.5.0] - 2025-12-13
 
 ### Changed
