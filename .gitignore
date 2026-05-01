@@ -28,4 +28,4 @@ Thumbs.db
 *.log
 
 # Claude Code auto-memory state
-.claude/auto-memory/dirty-files
+.claude/auto-memory/dirty-files-*
