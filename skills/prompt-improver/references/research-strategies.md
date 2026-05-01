@@ -450,42 +450,42 @@ Research:
 
 ### Choosing the Right Tool
 
-**Task/Explore Agent:**
+**Task/Explore Agent (primary research carrier):**
 - Broad exploration needed
 - Understanding architecture
 - Finding similar patterns
 - Complex multi-step research
 
-**Glob:**
+**Glob (dispatched via Task/Explore):**
 - Finding files by name pattern
 - Known file types
 - Specific naming conventions
 
-**Grep:**
+**Grep (dispatched via Task/Explore):**
 - Searching code content
 - Finding function calls
 - Pattern matching
 - TODO/FIXME discovery
 
-**Read:**
+**Read (single user-named file in main; multi-file via Task/Explore):**
 - Reading specific files
 - Documentation review
 - Configuration inspection
 - Package.json analysis
 
-**Bash (git commands):**
+**Bash (git commands) — main context only; Explore cannot run Bash:**
 - Historical context
 - Recent changes
 - Commit messages
 - File history
 
-**WebSearch:**
+**WebSearch (dispatched via Task/Explore):**
 - Current best practices
 - Industry standards
 - Library comparisons
 - Common solutions
 
-**WebFetch:**
+**WebFetch (dispatched via Task/Explore):**
 - Official documentation
 - Specific documentation pages
 - API references

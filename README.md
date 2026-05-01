@@ -24,6 +24,7 @@ sequenceDiagram
     participant Hook
     participant Claude
     participant Skill
+    participant Explore
     participant Project
 
     User->>Hook: "fix the bug"
@@ -33,8 +34,11 @@ sequenceDiagram
         Claude->>Skill: Invoke prompt-improver skill
         Skill-->>Claude: Research and question guidance
         Claude->>Claude: Create research plan (TodoWrite)
-        Claude->>Project: Execute research (codebase, web, docs)
-        Project-->>Claude: Context
+        Claude->>Explore: Dispatch research (Glob, Grep, Web, multi-file Read)
+        Explore->>Project: Execute search and reads
+        Project-->>Explore: Raw results
+        Explore-->>Claude: Synthesized findings
+        Claude->>Claude: Synthesize, mine history, run git/Bash if needed
         Claude->>User: Ask grounded questions (1-6)
         User->>Claude: Answer
         Claude->>Claude: Execute original request with answers
@@ -199,11 +203,12 @@ Claude proceeds immediately without questions.
 - Detailed guidance available without bloating all prompts
 - Zero context penalty for unused reference materials
 
-**Why main session (not subagent)?**
-- Has conversation history
-- No redundant exploration
-- More transparent
-- More efficient overall
+**Research dispatch model:**
+- Glob, Grep, WebSearch, WebFetch, and multi-file Read route through `Task/Explore` (Haiku-based, separate context window)
+- Main context handles history mining, single-file Reads of user-named files, Bash/git commands, synthesis, and questions
+- Bash stays in main context because Explore agents cannot run shell commands
+- Every Explore dispatch carries explicit conversation context (file paths, errors, prior decisions) since Explore has no access to prior turns
+- Net effect: search noise lives in cheap subagent tokens, decisions live in main-context tokens
 
 **Manual Skill Invocation:**
 You can also invoke the skill manually without the hook:

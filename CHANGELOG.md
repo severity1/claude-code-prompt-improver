@@ -2,6 +2,16 @@
 
 All notable changes to the Claude Code Prompt Improver project.
 
+## [0.5.2] - 2026-05-02
+
+### Changed
+- Skill research dispatches via `Task/Explore` subagents for Glob, Grep, WebSearch, WebFetch, and multi-file Read operations
+- Main context reserved for history mining, single-file Reads of user-named files, Bash/git commands, synthesis, and questions
+- Every Explore dispatch carries explicit conversation context (Explore agents have no access to prior turns)
+- README How-It-Works sequence diagram updated to show `Explore` participant and dispatch flow
+- README "Why main session?" section replaced with "Research dispatch model" doctrine
+- Bumped plugin version to 0.5.2
+
 ## [0.5.0] - 2025-12-13
 
 ### Changed

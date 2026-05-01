@@ -114,6 +114,12 @@ A UserPromptSubmit hook plugin that enriches vague prompts before Claude Code ex
 - Ground questions in research findings (not generic assumptions)
 - Support 1-6 questions for complex scenarios
 - Use conversation history to avoid redundant exploration
+
+**Tool dispatch model (skill research phase):**
+- Task/Explore is the primary research carrier for broad codebase exploration
+- Glob, Grep, WebSearch, WebFetch, and multi-file Read must be dispatched via Task/Explore - never called directly in main context
+- Bash (git commands) runs in main context only - Explore agents cannot run Bash
+- Explore agents are context-blind (no access to prior conversation turns) - every Explore prompt must include relevant context explicitly
 <!-- END AUTO-MANAGED -->
 
 <!-- AUTO-MANAGED: git-insights -->
@@ -139,6 +145,8 @@ A UserPromptSubmit hook plugin that enriches vague prompts before Claude Code ex
 - Reference files should be self-contained so they work when loaded independently
 - Test bypass prefixes whenever modifying hook logic to prevent breaking slash commands
 - When adding new bypass prefixes, update both the hook script and the conventions section
+- When writing skill research steps, always pass file paths, errors, and prior decisions into every Explore prompt - Explore has no conversation history access
+- Never call Glob, Grep, WebSearch, or WebFetch directly in main skill context - route them through Task/Explore to preserve context isolation
 <!-- END AUTO-MANAGED -->
 
 <!-- MANUAL -->

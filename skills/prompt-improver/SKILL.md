@@ -51,6 +51,8 @@ Create a dynamic research plan using TodoWrite before asking questions.
 - NEVER skip research
 - Check conversation history before exploring codebase
 - Questions must be grounded in actual findings, not assumptions or base knowledge
+- Route Glob, Grep, WebSearch, WebFetch, and multi-file Read through `Task/Explore` — never call them directly in main context
+- Include conversation-relevant context (file paths, errors, prior decisions) in every Explore prompt — Explore cannot see prior turns
 
 For detailed research strategies, patterns, and examples, see [references/research-strategies.md](references/research-strategies.md).
 
