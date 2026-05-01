@@ -39,21 +39,11 @@ def test_plugin_configuration():
     # Check version is 0.5.2
     assert config["version"] == "0.5.2", f"Expected version 0.5.2, got {config['version']}"
 
-    # Check skills field exists
-    assert "skills" in config, "Missing 'skills' field in plugin.json"
-    assert isinstance(config["skills"], list), "'skills' should be a list"
-    assert len(config["skills"]) > 0, "'skills' list is empty"
-
     # Check hooks field is NOT present (standard hooks/hooks.json is auto-discovered)
     assert "hooks" not in config, "The 'hooks' field should not be present (standard location is auto-discovered)"
 
-    # Check skill path
-    skill_path = config["skills"][0]
-    assert skill_path == "./skills/prompt-improver", f"Unexpected skill path: {skill_path}"
-
-    # Verify skill directory exists
-    resolved_skill_path = PROJECT_ROOT / skill_path.lstrip("./")
-    assert resolved_skill_path.exists(), f"Skill directory not found: {resolved_skill_path}"
+    # Check skills field is NOT present (standard skills/ directory is auto-discovered)
+    assert "skills" not in config, "The 'skills' field should not be present (standard location is auto-discovered)"
 
     print("✓ Plugin configuration is correct")
 
