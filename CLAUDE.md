@@ -5,7 +5,7 @@ This file provides guidance to Claude Code when working with code in this reposi
 <!-- AUTO-MANAGED: project-description -->
 ## Overview
 
-A UserPromptSubmit hook plugin that enriches vague prompts before Claude Code executes them. Uses skill-based architecture with hook-level evaluation for efficient prompt clarity assessment.
+A multi-hook plugin that enriches vague prompts and injects plan mode guidance. Uses skill-based architecture with hook-level evaluation for efficient prompt clarity assessment.
 
 **Core functionality:**
 - Intercepts prompts via UserPromptSubmit hook
@@ -13,6 +13,7 @@ A UserPromptSubmit hook plugin that enriches vague prompts before Claude Code ex
 - Clear prompts: proceeds immediately with minimal overhead
 - Vague prompts: invokes prompt-improver skill for research and clarification
 - Uses AskUserQuestion tool for targeted clarifying questions (1-6 questions)
+- Injects plan readability guidance via PreToolUse hook on EnterPlanMode
 <!-- END AUTO-MANAGED -->
 
 <!-- AUTO-MANAGED: build-commands -->
@@ -24,6 +25,7 @@ A UserPromptSubmit hook plugin that enriches vague prompts before Claude Code ex
   - Hook tests: `pytest tests/test_hook.py`
   - Skill tests: `pytest tests/test_skill.py`
   - Integration tests: `pytest tests/test_integration.py`
+  - Plan guidance tests: `pytest tests/test_plan_guidance.py`
 
 **Installation:**
 - Add marketplace: `claude plugin marketplace add severity1/severity1-marketplace`
@@ -35,12 +37,15 @@ A UserPromptSubmit hook plugin that enriches vague prompts before Claude Code ex
 <!-- AUTO-MANAGED: architecture -->
 ## Architecture
 
-**Hook Layer (scripts/improve-prompt.py):**
-- Evaluation orchestrator - reads stdin JSON, writes stdout JSON
-- Handles bypass prefixes: `*` (skip), `/` (slash commands), `#` (memorize)
-- Wraps prompts with evaluation instructions for clarity assessment
-- Claude evaluates clarity using conversation history
-- If vague: instructs Claude to invoke prompt-improver skill
+**Hook Layer (scripts/):**
+- `improve-prompt.py`: Evaluation orchestrator - reads stdin JSON, writes stdout JSON
+  - Handles bypass prefixes: `*` (skip), `/` (slash commands), `#` (memorize)
+  - Wraps prompts with evaluation instructions for clarity assessment
+  - Claude evaluates clarity using conversation history
+  - If vague: instructs Claude to invoke prompt-improver skill
+- `plan-guidance.py`: Plan mode guidance injector - fires on EnterPlanMode via PreToolUse
+  - Consumes stdin, outputs plan readability guidance as additionalContext
+  - Guidance: keep problem statement, omit decision history (rejected approaches, revision rationale), rewrite entire plan clean on revision (no append/annotation), one action per step with file paths as anchors (e.g., src/auth.ts:42), favor terse action steps
 
 **Skill Layer (skills/prompt-improver/):**
 - `SKILL.md`: Research and question workflow
@@ -53,9 +58,9 @@ A UserPromptSubmit hook plugin that enriches vague prompts before Claude Code ex
   - `examples.md`: Real prompt transformations
 
 **Directory structure:**
-- `scripts/` - Hook implementation
+- `scripts/` - Hook implementations (improve-prompt.py, plan-guidance.py)
 - `skills/prompt-improver/` - Skill and reference files
-- `tests/` - Test suite (hook, skill, integration)
+- `tests/` - Test suite (hook, skill, integration, plan_guidance)
 - `hooks/` - Hook configuration (hooks.json, auto-discovered)
 - `.claude-plugin/` - Plugin metadata
 <!-- END AUTO-MANAGED -->
@@ -65,9 +70,15 @@ A UserPromptSubmit hook plugin that enriches vague prompts before Claude Code ex
 
 **Hook output format:**
 - JSON structure following Claude Code specification
-- Format: `{"hookSpecificOutput": {"hookEventName": "UserPromptSubmit", "additionalContext": "..."}}`
+- UserPromptSubmit format: `{"hookSpecificOutput": {"hookEventName": "UserPromptSubmit", "additionalContext": "..."}}`
+- PreToolUse format: `{"hookSpecificOutput": {"hookEventName": "PreToolUse", "additionalContext": "..."}}`
 - Exit code 0 for all success paths
 - Hook commands use `python3 || python` fallback for Windows compatibility
+
+**Plugin auto-discovery:**
+- Do NOT add `hooks` field to `plugin.json` - `hooks/hooks.json` at standard location is auto-discovered
+- Do NOT add `skills` field to `plugin.json` - `skills/` directory at standard location is auto-discovered
+- Integration test `test_plugin_configuration` asserts both fields are absent
 
 **Bypass prefixes:**
 - `*` prefix: Skip evaluation entirely, strip prefix from prompt
@@ -127,14 +138,17 @@ A UserPromptSubmit hook plugin that enriches vague prompts before Claude Code ex
 
 **Key architectural decisions:**
 - Migrated from hook-only to skill-based architecture for significant token reduction on clear prompts
-- Hook auto-discovery: `hooks/hooks.json` at standard location removes need for `hooks` field in `plugin.json`
+- Auto-discovery: both `hooks/hooks.json` and `skills/` at standard locations remove need for `hooks` or `skills` fields in `plugin.json`
 - Plugin distributed via severity1-marketplace for easy installation
 - Progressive disclosure pattern chosen to minimize context overhead for the common case (clear prompts)
+- Added PreToolUse/EnterPlanMode hook to inject plan readability guidance without modifying the skill layer
 
 **Evolution:**
 - Started as embedded evaluation logic in hook script
 - Extracted skill layer to separate evaluation (hook) from enrichment (skill)
 - Added marketplace support for distribution
+- Adopted subagent-first research dispatch: broad exploration (Glob, Grep, WebSearch, WebFetch, multi-file Read) routed through Task/Explore to isolate main context
+- Added plan-guidance.py as a second hook script targeting plan mode entry
 <!-- END AUTO-MANAGED -->
 
 <!-- AUTO-MANAGED: best-practices -->
