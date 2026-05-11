@@ -2,6 +2,21 @@
 
 All notable changes to the Claude Code Prompt Improver project.
 
+## [0.5.3] - 2026-05-12
+
+### Added
+- `PreToolUse` hook scoped to `EnterPlanMode` that injects plan readability guidance into the model context
+- `scripts/plan-guidance.py` writes the guidance as `additionalContext` via `hookSpecificOutput`
+- Guidance keeps the problem statement, omits decision history, requires clean rewrites on plan revisions, and favors terse one-action-per-step prose with file paths as anchors
+- `tests/test_plan_guidance.py` covers JSON output shape, guidance content, and stdin handling
+
+### Fixed
+- `hooks/hooks.json` PreToolUse entry now uses the official `matcher` field instead of an unrecognized `tools` array, scoping the plan-guidance hook to `EnterPlanMode` only (previously fired on every tool call because the unknown field was silently ignored)
+
+### Changed
+- Plugin hook count grows from one (`UserPromptSubmit`) to two (`UserPromptSubmit` and `PreToolUse`)
+- Bumped plugin version to 0.5.3
+
 ## [0.5.2] - 2026-05-02
 
 ### Changed
