@@ -36,8 +36,8 @@ def test_plugin_configuration():
 
     config = json.loads(PLUGIN_JSON.read_text())
 
-    # Check version is 0.5.2
-    assert config["version"] == "0.5.2", f"Expected version 0.5.2, got {config['version']}"
+    # Check version is 0.5.3
+    assert config["version"] == "0.5.3", f"Expected version 0.5.3, got {config['version']}"
 
     # Check hooks field is NOT present (standard hooks/hooks.json is auto-discovered)
     assert "hooks" not in config, "The 'hooks' field should not be present (standard location is auto-discovered)"

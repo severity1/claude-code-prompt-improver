@@ -15,13 +15,13 @@
     "PreToolUse": [
       {
         "description": "Injects plan readability guidance when entering plan mode",
+        "matcher": "EnterPlanMode",
         "hooks": [
           {
             "type": "command",
             "command": "python3 ${CLAUDE_PLUGIN_ROOT}/scripts/plan-guidance.py || python ${CLAUDE_PLUGIN_ROOT}/scripts/plan-guidance.py"
           }
-        ],
-        "tools": ["EnterPlanMode"]
+        ]
       }
     ]
   }
