@@ -15,7 +15,7 @@ PLUGIN_JSON = PROJECT_ROOT / ".claude-plugin" / "plugin.json"
 SKILL_DIR = PROJECT_ROOT / "skills" / "prompt-improver"
 
 def run_hook(prompt):
-    """Run the hook script with given prompt"""
+    """Run the hook script with given prompt and return stdout text"""
     input_data = json.dumps({"prompt": prompt})
 
     result = subprocess.run(
@@ -28,7 +28,7 @@ def run_hook(prompt):
     if result.returncode != 0:
         raise Exception(f"Hook failed: {result.stderr}")
 
-    return json.loads(result.stdout)
+    return result.stdout.rstrip("\n")
 
 def test_plugin_configuration():
     """Test that plugin.json is properly configured"""
@@ -53,12 +53,11 @@ def test_end_to_end_flow():
     output = run_hook("add authentication")
 
     # Should get evaluation wrapper
-    context = output["hookSpecificOutput"]["additionalContext"]
-    assert "PROMPT EVALUATION" in context or "EVALUATE" in context
-    assert "add authentication" in context
+    assert "PROMPT EVALUATION" in output or "EVALUATE" in output
+    assert "add authentication" in output
 
     # Should mention skill for vague cases
-    assert "skill" in context.lower()
+    assert "skill" in output.lower()
 
     print("✓ End-to-end flow works (normal prompt → evaluation wrapper)")
 
@@ -66,19 +65,16 @@ def test_bypass_flow():
     """Test that bypass mechanism works end-to-end"""
     # Test asterisk bypass
     output = run_hook("* just do it")
-    context = output["hookSpecificOutput"]["additionalContext"]
-    assert context == "just do it"
-    assert "skill" not in context.lower()
+    assert output == "just do it"
+    assert "skill" not in output.lower()
 
     # Test slash command
     output = run_hook("/commit")
-    context = output["hookSpecificOutput"]["additionalContext"]
-    assert context == "/commit"
+    assert output == "/commit"
 
     # Test hash prefix
     output = run_hook("# note for later")
-    context = output["hookSpecificOutput"]["additionalContext"]
-    assert context == "# note for later"
+    assert output == "# note for later"
 
     print("✓ Bypass mechanisms work end-to-end")
 
@@ -112,10 +108,8 @@ def test_token_overhead():
     """Test that hook overhead is reasonable"""
     output = run_hook("test")
 
-    context = output["hookSpecificOutput"]["additionalContext"]
-
     # Rough character count (tokens ≈ chars/4 for English)
-    char_count = len(context)
+    char_count = len(output)
     estimated_tokens = char_count // 4
 
     # New version should be ~200-220 tokens (evaluation prompt with preface instruction)
@@ -143,15 +137,13 @@ def test_hook_output_consistency():
     for prompt in prompts:
         output = run_hook(prompt)
 
-        # All should have same structure
-        assert "hookSpecificOutput" in output
-        assert "hookEventName" in output["hookSpecificOutput"]
-        assert "additionalContext" in output["hookSpecificOutput"]
+        # All should be plain text (not JSON)
+        assert not output.strip().startswith("{")
+        assert "hookSpecificOutput" not in output
 
         # All should have evaluation wrapper
-        context = output["hookSpecificOutput"]["additionalContext"]
-        assert "EVALUATE" in context or "evaluate" in context.lower()
-        assert prompt in context
+        assert "EVALUATE" in output or "evaluate" in output.lower()
+        assert prompt in output
 
     print(f"✓ Hook output consistent across {len(prompts)} different prompts")
 
