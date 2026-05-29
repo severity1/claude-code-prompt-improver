@@ -8,7 +8,12 @@ All notable changes to the Claude Code Prompt Improver project.
 - `scripts/workflow-guidance.py`: a second `UserPromptSubmit` hook that injects model-routing and plan-mode-first HITL guidance when a dynamic workflow is requested
 - Triggers on the `workflow`/`workflows` keyword, the `/deep-research` command, `/effort ultracode`, and saved workflow commands found under `.claude/workflows/` (cwd) or `~/.claude/workflows/`
 - Guidance is model-agnostic: it reserves the session model for planning, strategy, and orchestration and routes implementation to a smaller, cheaper model; `/effort ultracode` appends a clause applying the routing session-wide
-- `tests/test_workflow_guidance.py` covers trigger detection, the `*` bypass, path-traversal safety, empty/invalid stdin, and the guidance token budget
+- `tests/test_workflow_guidance.py` covers trigger detection, the `*` and `#` bypass prefixes, the `/workflows` no-output case, the conditional guard, path-traversal safety, empty/invalid stdin, and the guidance token budget
+
+### Fixed
+- `#` (memorize) prefix now bypasses the workflow-guidance hook, mirroring `improve-prompt.py`, so a prompt like "# remember the deploy workflow doc" no longer false-triggers
+- Natural-language keyword search restricted to non-slash prompts so the `/workflows` run-management command no longer false-triggers (slash prompts keep explicit `/deep-research`, `/effort ultracode`, and saved-workflow detection)
+- `CORE_GUIDANCE` now leads with a conditional ("If this prompt will run as a dynamic workflow...") so broad keyword matches like "fix the CI workflow file" self-cancel at the model rather than injecting inert guidance
 
 ### Changed
 - Plugin now registers two `UserPromptSubmit` hooks (`improve-prompt.py` and `workflow-guidance.py`) alongside the `PreToolUse` plan-guidance hook
