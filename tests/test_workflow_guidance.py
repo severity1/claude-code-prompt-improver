@@ -54,6 +54,19 @@ def test_plural_keyword_triggers():
     assert "orchestration" in context
 
 
+def test_workflows_management_command_no_output():
+    """/workflows is a run-management command, not a launch trigger (#2)"""
+    result = run_hook("/workflows")
+    assert result.returncode == 0
+    assert result.stdout.strip() == ""
+
+
+def test_conditional_guard_present():
+    """A keyword trigger's context leads with the conditional guard (#3)"""
+    context = parse(run_hook("build a workflow to migrate 500 files"))
+    assert context.startswith("If this prompt will run as a dynamic workflow")
+
+
 def test_deep_research_command_triggers():
     """The /deep-research command triggers guidance"""
     context = parse(run_hook("/deep-research the auth subsystem"))
@@ -111,6 +124,13 @@ def test_non_workflow_prompt_no_output():
 def test_bypass_prefix_no_output():
     """The * bypass prefix suppresses output even for workflow prompts"""
     result = run_hook("* build a workflow")
+    assert result.returncode == 0
+    assert result.stdout.strip() == ""
+
+
+def test_hash_bypass_no_output():
+    """The # memorize prefix suppresses output even for workflow prompts (#1)"""
+    result = run_hook("# remember the deploy workflow doc")
     assert result.returncode == 0
     assert result.stdout.strip() == ""
 
