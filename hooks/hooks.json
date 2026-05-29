@@ -10,6 +10,15 @@
             "description": "Run the prompt improvement script"
           }
         ]
+      },
+      {
+        "description": "Injects model-routing guidance when a dynamic workflow is requested",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ${CLAUDE_PLUGIN_ROOT}/scripts/workflow-guidance.py || python ${CLAUDE_PLUGIN_ROOT}/scripts/workflow-guidance.py"
+          }
+        ]
       }
     ],
     "PreToolUse": [

@@ -173,6 +173,16 @@ Claude proceeds immediately without questions.
 - Claude evaluates clarity using conversation history
 - If vague: Instructs Claude to invoke `prompt-improver` skill
 
+**Hook (scripts/workflow-guidance.py) - Workflow Routing Guidance:**
+- Second `UserPromptSubmit` hook; fires only when a dynamic workflow is requested
+- Triggers on the `workflow`/`workflows` keyword, `/deep-research`, `/effort ultracode`, and saved workflow commands under `.claude/workflows/` (cwd) or `~/.claude/workflows/`
+- The `*` bypass prefix and non-slash prompts skip all filesystem scanning
+- Injects model-agnostic routing guidance: reserve the session model for planning, strategy, and orchestration; route implementation to a smaller, cheaper model
+- Advises plan-mode-first as extra human review before a multi-agent run (advisory, not a replacement for the workflow's own approval gate)
+- `/effort ultracode` appends a clause applying the routing to every task that session
+- Silent on every non-workflow prompt (zero output), so the only cost lands where a multi-agent run is about to begin
+- **Known limitation:** the keyword filter biases toward recall, so a non-launch mention of "workflow" (e.g., "fix the CI workflow file") may inject inert guidance that the model ignores via the conditional guard. No hook can see the post-prompt workflow decision.
+
 **Skill (skills/prompt-improver/) - Research & Question Logic:**
 - **SKILL.md**: Research and question workflow (~170 lines)
   - Assumes prompt already determined vague by hook

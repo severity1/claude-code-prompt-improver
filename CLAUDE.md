@@ -14,6 +14,7 @@ A multi-hook plugin that enriches vague prompts and injects plan mode guidance. 
 - Vague prompts: invokes prompt-improver skill for research and clarification
 - Uses AskUserQuestion tool for targeted clarifying questions (1-6 questions)
 - Injects plan readability guidance via PreToolUse hook on EnterPlanMode
+- Injects model-routing and plan-mode-first HITL guidance via second UserPromptSubmit hook for workflow/deep-research/ultracode requests
 <!-- END AUTO-MANAGED -->
 
 <!-- AUTO-MANAGED: build-commands -->
@@ -26,6 +27,7 @@ A multi-hook plugin that enriches vague prompts and injects plan mode guidance. 
   - Skill tests: `pytest tests/test_skill.py`
   - Integration tests: `pytest tests/test_integration.py`
   - Plan guidance tests: `pytest tests/test_plan_guidance.py`
+  - Workflow guidance tests: `pytest tests/test_workflow_guidance.py`
 
 **Installation:**
 - Add marketplace: `claude plugin marketplace add severity1/severity1-marketplace`
@@ -46,6 +48,9 @@ A multi-hook plugin that enriches vague prompts and injects plan mode guidance. 
 - `plan-guidance.py`: Plan mode guidance injector - fires on EnterPlanMode via PreToolUse
   - Consumes stdin, outputs plan readability guidance as additionalContext
   - Guidance: keep problem statement, omit decision history (rejected approaches, revision rationale), rewrite entire plan clean on revision (no append/annotation), one action per step with file paths as anchors (e.g., src/auth.ts:42), favor terse action steps
+- `workflow-guidance.py`: Workflow routing injector - second UserPromptSubmit hook, fires only when a dynamic workflow is requested
+  - Triggers on the `workflow`/`workflows` keyword, `/deep-research`, `/effort ultracode`, and saved workflow commands under `.claude/workflows/` (cwd) or `~/.claude/workflows/`
+  - `*` bypass and non-slash prompts skip filesystem scanning; emits model-agnostic routing guidance (session model for planning/orchestration, smaller cheaper model for implementation) plus advisory plan-mode-first HITL; silent on every non-workflow prompt
 
 **Skill Layer (skills/prompt-improver/):**
 - `SKILL.md`: Research and question workflow
@@ -58,9 +63,9 @@ A multi-hook plugin that enriches vague prompts and injects plan mode guidance. 
   - `examples.md`: Real prompt transformations
 
 **Directory structure:**
-- `scripts/` - Hook implementations (improve-prompt.py, plan-guidance.py)
+- `scripts/` - Hook implementations (improve-prompt.py, plan-guidance.py, workflow-guidance.py)
 - `skills/prompt-improver/` - Skill and reference files
-- `tests/` - Test suite (hook, skill, integration, plan_guidance)
+- `tests/` - Test suite (hook, skill, integration, plan_guidance, workflow_guidance)
 - `hooks/` - Hook configuration (hooks.json, auto-discovered)
 - `.claude-plugin/` - Plugin metadata
 <!-- END AUTO-MANAGED -->
@@ -142,6 +147,7 @@ A multi-hook plugin that enriches vague prompts and injects plan mode guidance. 
 - Plugin distributed via severity1-marketplace for easy installation
 - Progressive disclosure pattern chosen to minimize context overhead for the common case (clear prompts)
 - Added PreToolUse/EnterPlanMode hook to inject plan readability guidance without modifying the skill layer
+- Added workflow-guidance.py as a third hook script (second UserPromptSubmit) for model-routing and HITL guidance on workflow/deep-research/ultracode requests; silent on all other prompts
 
 **Evolution:**
 - Started as embedded evaluation logic in hook script
@@ -149,6 +155,7 @@ A multi-hook plugin that enriches vague prompts and injects plan mode guidance. 
 - Added marketplace support for distribution
 - Adopted subagent-first research dispatch: broad exploration (Glob, Grep, WebSearch, WebFetch, multi-file Read) routed through Task/Explore to isolate main context
 - Added plan-guidance.py as a second hook script targeting plan mode entry
+- Added workflow-guidance.py as a third hook script injecting model-routing guidance for dynamic workflow requests; uses saved-workflow filesystem scan gated behind leading "/" to avoid I/O on non-slash prompts
 <!-- END AUTO-MANAGED -->
 
 <!-- AUTO-MANAGED: best-practices -->
@@ -161,6 +168,8 @@ A multi-hook plugin that enriches vague prompts and injects plan mode guidance. 
 - When adding new bypass prefixes, update both the hook script and the conventions section
 - When writing skill research steps, always pass file paths, errors, and prior decisions into every Explore prompt - Explore has no conversation history access
 - Never call Glob, Grep, WebSearch, or WebFetch directly in main skill context - route them through Task/Explore to preserve context isolation
+- workflow-guidance.py gates filesystem scanning behind a leading "/" check - non-slash prompts do zero I/O; preserve this pattern when adding new trigger conditions
+- When adding new bypass prefixes to workflow-guidance.py, mirror the `*` prefix check at the top of main() before any trigger evaluation
 <!-- END AUTO-MANAGED -->
 
 <!-- MANUAL -->
