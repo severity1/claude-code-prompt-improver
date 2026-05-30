@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Tests for the prompt-improver hook
-Tests bypass prefixes, skill invocation, and JSON output format
+Tests bypass prefixes, skill invocation, and plain text output format
 """
 import json
 import subprocess
@@ -12,7 +12,7 @@ from pathlib import Path
 HOOK_SCRIPT = Path(__file__).parent.parent / "scripts" / "improve-prompt.py"
 
 def run_hook(prompt):
-    """Run the hook script with given prompt and return parsed output"""
+    """Run the hook script with given prompt and return stdout text"""
     input_data = json.dumps({"prompt": prompt})
 
     result = subprocess.run(
@@ -25,86 +25,67 @@ def run_hook(prompt):
     if result.returncode != 0:
         raise Exception(f"Hook failed: {result.stderr}")
 
-    return json.loads(result.stdout)
+    return result.stdout.rstrip("\n")
 
 def test_bypass_asterisk():
     """Test that * prefix strips the prefix and passes through"""
     output = run_hook("* just add a comment")
 
-    assert "hookSpecificOutput" in output
-    assert output["hookSpecificOutput"]["hookEventName"] == "UserPromptSubmit"
-
-    context = output["hookSpecificOutput"]["additionalContext"]
-    assert context == "just add a comment"
-    assert not context.startswith("*")
+    assert output == "just add a comment"
+    assert not output.startswith("*")
     print("✓ Asterisk bypass test passed")
 
 def test_bypass_slash():
     """Test that / prefix passes through unchanged (slash commands)"""
     output = run_hook("/commit")
 
-    assert "hookSpecificOutput" in output
-    context = output["hookSpecificOutput"]["additionalContext"]
-    assert context == "/commit"
+    assert output == "/commit"
     print("✓ Slash command bypass test passed")
 
 def test_bypass_hash():
     """Test that # prefix passes through unchanged (memorize feature)"""
     output = run_hook("# remember to use TypeScript")
 
-    assert "hookSpecificOutput" in output
-    context = output["hookSpecificOutput"]["additionalContext"]
-    assert context == "# remember to use TypeScript"
+    assert output == "# remember to use TypeScript"
     print("✓ Hash prefix bypass test passed")
 
 def test_evaluation_prompt():
     """Test that normal prompts get evaluation wrapper"""
     output = run_hook("fix the bug")
 
-    assert "hookSpecificOutput" in output
-    assert output["hookSpecificOutput"]["hookEventName"] == "UserPromptSubmit"
-
-    context = output["hookSpecificOutput"]["additionalContext"]
-
     # Should contain evaluation prompt
-    assert "PROMPT EVALUATION" in context
-    assert "fix the bug" in context
-    assert "EVALUATE:" in context or "evaluate" in context.lower()
+    assert "PROMPT EVALUATION" in output
+    assert "fix the bug" in output
+    assert "EVALUATE:" in output or "evaluate" in output.lower()
 
     # Should mention using the skill for vague cases
-    assert "prompt-improver skill" in context.lower() or "skill" in context.lower()
+    assert "prompt-improver skill" in output.lower() or "skill" in output.lower()
 
     # Should have proceed/clear logic
-    assert "clear" in context.lower() or "proceed" in context.lower()
+    assert "clear" in output.lower() or "proceed" in output.lower()
 
     print("✓ Evaluation prompt test passed")
 
-def test_json_output_format():
-    """Test that output follows correct JSON schema"""
+def test_plain_text_output_format():
+    """Test that output is plain text (not JSON-wrapped)"""
     output = run_hook("test prompt")
 
-    # Verify structure
-    assert isinstance(output, dict)
-    assert "hookSpecificOutput" in output
-    assert isinstance(output["hookSpecificOutput"], dict)
+    # Verify plain text: not a JSON object
+    assert not output.strip().startswith("{")
+    assert "hookSpecificOutput" not in output
+    assert isinstance(output, str)
 
-    hook_output = output["hookSpecificOutput"]
-    assert "hookEventName" in hook_output
-    assert "additionalContext" in hook_output
-    assert hook_output["hookEventName"] == "UserPromptSubmit"
-    assert isinstance(hook_output["additionalContext"], str)
+    # Should still contain the evaluation wrapper
+    assert "PROMPT EVALUATION" in output
 
-    print("✓ JSON output format test passed")
+    print("✓ Plain text output format test passed")
 
 def test_empty_prompt():
     """Test handling of empty prompt"""
     output = run_hook("")
 
-    assert "hookSpecificOutput" in output
-    context = output["hookSpecificOutput"]["additionalContext"]
-
     # Should still invoke skill even for empty prompt
-    assert "prompt-improver skill" in context.lower()
+    assert "prompt-improver skill" in output.lower()
     print("✓ Empty prompt test passed")
 
 def test_multiline_prompt():
@@ -115,23 +96,18 @@ and add error handling"""
 
     output = run_hook(prompt)
 
-    assert "hookSpecificOutput" in output
-    context = output["hookSpecificOutput"]["additionalContext"]
-
     # Should preserve multiline content in skill invocation
-    assert "refactor the auth system" in context
+    assert "refactor the auth system" in output
     print("✓ Multiline prompt test passed")
 
 def test_special_characters():
     """Test handling of special characters in prompts"""
     output = run_hook('fix the "bug" in user\'s code & database')
 
-    assert "hookSpecificOutput" in output
-    context = output["hookSpecificOutput"]["additionalContext"]
-
-    # Should contain the original prompt
-    assert "bug" in context
-    assert "user" in context or "users" in context
+    # Should contain the original prompt literally (no JSON escaping)
+    assert 'fix the "bug"' in output
+    assert "user's code" in output
+    assert "&" in output
     print("✓ Special characters test passed")
 
 def run_all_tests():
@@ -141,7 +117,7 @@ def run_all_tests():
         test_bypass_slash,
         test_bypass_hash,
         test_evaluation_prompt,
-        test_json_output_format,
+        test_plain_text_output_format,
         test_empty_prompt,
         test_multiline_prompt,
         test_special_characters,

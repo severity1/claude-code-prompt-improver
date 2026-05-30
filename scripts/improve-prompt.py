@@ -15,43 +15,29 @@ except json.JSONDecodeError as e:
 
 prompt = input_data.get("prompt", "")
 
-# Escape quotes in prompt for safe embedding
-escaped_prompt = prompt.replace("\\", "\\\\").replace('"', '\\"')
-
-def output_json(text):
-    """Output text in UserPromptSubmit JSON format"""
-    output = {
-        "hookSpecificOutput": {
-            "hookEventName": "UserPromptSubmit",
-            "additionalContext": text
-        }
-    }
-    print(json.dumps(output))
-
 # Check for bypass conditions
 # 1. Explicit bypass with * prefix
 # 2. Slash commands (built-in or custom)
 # 3. Memorize feature (# prefix)
 if prompt.startswith("*"):
     # User explicitly bypassed improvement - remove * prefix
-    clean_prompt = prompt[1:].strip()
-    output_json(clean_prompt)
+    print(prompt[1:].strip())
     sys.exit(0)
 
 if prompt.startswith("/"):
     # Slash command - pass through unchanged
-    output_json(prompt)
+    print(prompt)
     sys.exit(0)
 
 if prompt.startswith("#"):
     # Memorize feature - pass through unchanged
-    output_json(prompt)
+    print(prompt)
     sys.exit(0)
 
 # Build the evaluation wrapper
 wrapped_prompt = f"""PROMPT EVALUATION
 
-Original user request: "{escaped_prompt}"
+Original user request: "{prompt}"
 
 EVALUATE: Is this prompt clear enough to execute, or does it need enrichment?
 
@@ -67,5 +53,5 @@ ONLY USE SKILL if genuinely vague (e.g., "fix the bug" with no context):
 
 If clear, proceed with the original request. If vague, invoke the skill."""
 
-output_json(wrapped_prompt)
+print(wrapped_prompt)
 sys.exit(0)
