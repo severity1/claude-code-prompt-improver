@@ -1,0 +1,7 @@
+{
+  "id": "improve",
+  "event": "UserPromptSubmit",
+  "description": "Prompt-clarity evaluation wrapper. Always fires; owns its own */#/slash bypass logic inside the improve handler.",
+  "handler": "improve",
+  "priority": 0
+}

@@ -1,0 +1,18 @@
+{
+  "id": "background-exec",
+  "event": "UserPromptSubmit",
+  "description": "Self-cancelling reminder to use background execution for long-running commands. Primitive pure-data nudge following the workflow rule's 'if X... if not, ignore' style.",
+  "criteria": {
+    "match": ["\\b(long-running|long running|watch mode|watcher|dev server)\\b"],
+    "flags": ["ignorecase"],
+    "non_slash": true
+  },
+  "action": {
+    "type": "inject_context",
+    "text": [
+      "If this task starts a long-running or never-exiting process (dev server, watcher, tail): run it in the background rather than blocking the turn, then poll its output.",
+      "If the command is short-lived, ignore this guidance."
+    ]
+  },
+  "priority": 20
+}

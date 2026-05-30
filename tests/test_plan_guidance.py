@@ -8,13 +8,13 @@ import subprocess
 import sys
 from pathlib import Path
 
-HOOK_SCRIPT = Path(__file__).parent.parent / "scripts" / "plan-guidance.py"
+HOOK_SCRIPT = Path(__file__).parent.parent / "scripts" / "engine.py"
 
 
 def run_hook(input_data="{}"):
-    """Run the plan-guidance hook and return (parsed_output, returncode)"""
+    """Run the engine for the PreToolUse event and return the CompletedProcess"""
     result = subprocess.run(
-        [sys.executable, str(HOOK_SCRIPT)],
+        [sys.executable, str(HOOK_SCRIPT), "PreToolUse"],
         input=input_data,
         capture_output=True,
         text=True
@@ -53,12 +53,7 @@ def test_exit_code_zero():
 
 def test_handles_empty_stdin():
     """Test graceful handling of empty stdin"""
-    result = subprocess.run(
-        [sys.executable, str(HOOK_SCRIPT)],
-        input="",
-        capture_output=True,
-        text=True
-    )
+    result = run_hook("")
     assert result.returncode == 0
     output = json.loads(result.stdout)
     assert "hookSpecificOutput" in output
@@ -66,12 +61,7 @@ def test_handles_empty_stdin():
 
 def test_handles_invalid_json_stdin():
     """Test graceful handling of invalid JSON on stdin"""
-    result = subprocess.run(
-        [sys.executable, str(HOOK_SCRIPT)],
-        input="not json at all",
-        capture_output=True,
-        text=True
-    )
+    result = run_hook("not json at all")
     assert result.returncode == 0
     output = json.loads(result.stdout)
     assert "hookSpecificOutput" in output

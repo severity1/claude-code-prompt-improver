@@ -1,0 +1,19 @@
+{
+  "id": "subagent-routing",
+  "event": "SubagentStart",
+  "description": "Model and token-efficiency guidance when a research/planning agent spawns. Matches on agent_type, which the old script layer could not reach. Self-cancelling so it is inert for agent types it does not name.",
+  "criteria": {
+    "match_target": "agent_type",
+    "match": ["Explore", "Plan"]
+  },
+  "action": {
+    "type": "inject_context",
+    "text": [
+      "If this is a broad read-only research or planning pass: favor breadth over depth.",
+      "Read excerpts rather than whole files, return conclusions rather than raw dumps, and keep the report tight so the parent context stays lean.",
+      "If this agent is doing focused implementation work instead, ignore this guidance."
+    ]
+  },
+  "bypass": "none",
+  "priority": 0
+}

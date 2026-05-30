@@ -1,0 +1,18 @@
+{
+  "id": "plan",
+  "event": "PreToolUse",
+  "matcher": "EnterPlanMode",
+  "description": "Plan readability guidance injected on plan-mode entry. Pure data; gating is done by the EnterPlanMode matcher in hooks.json, so this rule always fires when dispatched.",
+  "action": {
+    "type": "inject_context",
+    "text": [
+      "Plan readability guidance:",
+      "Keep the problem statement - omit decision history (rejected approaches, revision rationale, prior iterations).",
+      "On plan revisions, rewrite the entire plan clean - do not append revision notes or annotate what changed.",
+      "Use one action per step with file paths as anchors (e.g., src/auth.ts:42).",
+      "Favor terse action steps over explanatory prose."
+    ]
+  },
+  "bypass": "none",
+  "priority": 0
+}
