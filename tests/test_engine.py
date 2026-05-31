@@ -132,10 +132,68 @@ def test_hash_bypass_passthrough():
 # ---------------------------------------------------------------------------
 
 def test_pretooluse_plan_guidance_fires():
-    """PreToolUse emits the plan readability guidance"""
-    context = context_of(run_engine("PreToolUse", {}), "PreToolUse")
+    """PreToolUse on EnterPlanMode emits the plan readability guidance"""
+    context = context_of(
+        run_engine("PreToolUse", {"tool_name": "EnterPlanMode"}), "PreToolUse"
+    )
     assert "decision history" in context
     assert "rewrite the entire plan clean" in context
+
+
+def test_plan_silent_on_bash():
+    """The plan rule self-gates on tool_name and stays silent on Bash"""
+    result = run_engine(
+        "PreToolUse", {"tool_name": "Bash", "tool_input": {"command": "ls -la"}}
+    )
+    assert result.returncode == 0
+    assert "decision history" not in result.stdout
+
+
+def test_background_exec_fires_on_long_running_command():
+    """A dev-server Bash command triggers the background-exec guidance"""
+    context = context_of(
+        run_engine(
+            "PreToolUse",
+            {"tool_name": "Bash", "tool_input": {"command": "npm run dev"}},
+        ),
+        "PreToolUse",
+    )
+    assert "background" in context.lower()
+    assert "token efficiency" in context.lower()
+
+
+def test_background_exec_silent_on_short_command():
+    """A short-lived Bash command does not trigger background-exec"""
+    result = run_engine(
+        "PreToolUse", {"tool_name": "Bash", "tool_input": {"command": "ls -la"}}
+    )
+    assert result.returncode == 0
+    assert result.stdout.strip() == ""
+
+
+def test_background_exec_silent_when_no_command():
+    """A Bash payload missing tool_input.command is a clean no-op, not a crash"""
+    result = run_engine("PreToolUse", {"tool_name": "Bash"})
+    assert result.returncode == 0
+    assert result.stdout.strip() == ""
+
+
+def test_output_readability_fires_on_deliverable_keyword():
+    """A prompt asking for a report triggers the output-readability nudge"""
+    context = context_of(
+        run_engine("UserPromptSubmit", {"prompt": "write a report comparing the two designs"}),
+        "UserPromptSubmit",
+    )
+    assert "human-parsable" in context
+
+
+def test_output_readability_silent_on_plain_prompt():
+    """An ordinary prompt has the improve wrapper but no readability guidance"""
+    context = context_of(
+        run_engine("UserPromptSubmit", {"prompt": "rename the variable in utils.py"}),
+        "UserPromptSubmit",
+    )
+    assert "human-parsable" not in context
 
 
 def test_subagentstart_routing_fires():

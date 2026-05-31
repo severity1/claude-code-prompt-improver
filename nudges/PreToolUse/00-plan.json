@@ -1,8 +1,11 @@
 {
   "id": "plan",
   "event": "PreToolUse",
-  "matcher": "EnterPlanMode",
-  "description": "Plan readability guidance injected on plan-mode entry. Pure data; gating is done by the EnterPlanMode matcher in hooks.json, so this rule always fires when dispatched.",
+  "description": "Plan readability guidance injected on plan-mode entry. Self-gates on tool_name=EnterPlanMode so it stays silent for the other PreToolUse tools the engine now runs on (e.g. Bash).",
+  "criteria": {
+    "match_target": "tool_name",
+    "match": ["^EnterPlanMode$"]
+  },
   "action": {
     "type": "inject_context",
     "text": [

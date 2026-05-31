@@ -1,0 +1,18 @@
+{
+  "id": "output-readability",
+  "event": "UserPromptSubmit",
+  "description": "Self-cancelling reminder to structure substantial deliverables (reports, reviews, summaries, comparisons, analyses) for human scanning. Pure data, keyword match on non-slash prompts, following the workflow rule's 'if X... if not, ignore' style.",
+  "criteria": {
+    "match": ["\\b(report|summary|summari[sz]e|review|analysis|analy[sz]e|compare|comparison|breakdown|write[- ]?up|overview|audit)\\b"],
+    "flags": ["ignorecase"],
+    "non_slash": true
+  },
+  "action": {
+    "type": "inject_context",
+    "text": [
+      "If the response will be a substantial deliverable (report, review, summary, comparison, analysis): make it human-parsable - lead with the conclusion, prefer short sections, tables, and bullets over walls of prose, define jargon on first use, and keep it terse.",
+      "If this is a quick back-and-forth, ignore this guidance."
+    ]
+  },
+  "priority": 30
+}
