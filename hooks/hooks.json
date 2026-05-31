@@ -13,8 +13,8 @@
     ],
     "PreToolUse": [
       {
-        "description": "Declarative hook engine: runs PreToolUse nudge rules on plan-mode entry",
-        "matcher": "EnterPlanMode",
+        "description": "Declarative hook engine: runs PreToolUse nudge rules on plan-mode entry and Bash commands",
+        "matcher": "EnterPlanMode|Bash",
         "hooks": [
           {
             "type": "command",

@@ -15,11 +15,14 @@ import sys
 import nudge_builtins
 from rules import rules_for
 
-# Where each criteria.match_target reads its value from in the payload.
+# Where each criteria.match_target reads its value from in the payload. A
+# tuple value is a nested path walked dict-by-dict (e.g. tool_input.command for
+# PreToolUse/Bash); a string value is a top-level key.
 _TARGET_KEYS = {
     "prompt": "prompt",
     "tool_name": "tool_name",
     "agent_type": "agent_type",
+    "command": ("tool_input", "command"),
 }
 
 
@@ -42,8 +45,19 @@ def _read_payload():
 
 
 def _target_value(data, match_target):
-    """Return the string the criteria matches against, for the given target."""
-    value = data.get(_TARGET_KEYS.get(match_target, "prompt"), "")
+    """Return the string the criteria matches against, for the given target.
+
+    Unknown targets fall back to the prompt key. A tuple key is walked as a
+    nested path, stopping (and returning "") at any non-dict level, so a
+    missing tool_input is just an empty match rather than a crash.
+    """
+    key = _TARGET_KEYS.get(match_target, "prompt")
+    if isinstance(key, tuple):
+        value = data
+        for part in key:
+            value = value.get(part, "") if isinstance(value, dict) else ""
+    else:
+        value = data.get(key, "")
     return value if isinstance(value, str) else ""
 
 

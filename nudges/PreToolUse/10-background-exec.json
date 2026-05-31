@@ -1,0 +1,25 @@
+{
+  "id": "background-exec",
+  "event": "PreToolUse",
+  "description": "On a long-running or never-exiting Bash command, encourage background execution and token-efficient polling. Matches on tool_input.command, so it is silent for plan-mode entry and every non-Bash tool (which carry no command). Self-cancelling for short-lived commands.",
+  "criteria": {
+    "match_target": "command",
+    "match": [
+      "\\b(npm|pnpm|yarn|bun)\\s+(run\\s+)?(dev|start|serve|watch)\\b",
+      "\\b(vite|webpack(-dev-server)?|nodemon|next\\s+dev|rails\\s+server|flask\\s+run|uvicorn|gunicorn)\\b",
+      "--watch\\b",
+      "\\btail\\s+-[fF]\\b",
+      "\\b(http\\.server|live-server|serve)\\b"
+    ],
+    "flags": ["ignorecase"]
+  },
+  "action": {
+    "type": "inject_context",
+    "text": [
+      "This looks like a long-running or never-exiting process (dev server, watcher, tail). Run it in the background rather than blocking the turn.",
+      "Design for token efficiency: when you poll it, surface only the output that matters - the error, the 'ready' line, the specific signal you are waiting for. Filter at the source (grep, tail, --quiet) instead of piping whole logs into context.",
+      "If this command is short-lived, ignore this guidance."
+    ]
+  },
+  "priority": 10
+}
