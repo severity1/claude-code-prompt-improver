@@ -119,7 +119,7 @@ The engine resolves `nudges/` relative to its own location and loads it recursiv
     ],
     "PreToolUse": [
       {
-        "matcher": "EnterPlanMode",
+        "matcher": "EnterPlanMode|Bash",
         "hooks": [
           {
             "type": "command",
@@ -212,9 +212,10 @@ Claude proceeds immediately without questions.
 **Nudges (nudges/*.json) - The Registry:**
 - `improve` (handler) - prompt-clarity evaluation wrapper; always fires; owns `*`/`/`/`#` bypass
 - `workflow` (handler) - model-routing guidance for dynamic-workflow requests; keyword/`/deep-research`/`/effort ultracode`/saved-workflow detection, ultracode clause, `*`/`#` bypass
-- `plan` (pure data, `PreToolUse`, matcher `EnterPlanMode`) - plan readability guidance
+- `plan` (pure data, `PreToolUse`, self-gates on `tool_name=EnterPlanMode`) - plan readability guidance
 - `subagent-routing` (pure data, `SubagentStart`, matches `agent_type`) - breadth-over-depth guidance when an Explore or Plan agent spawns
-- `background-exec` (pure data, `UserPromptSubmit`, keyword match) - self-cancelling reminder to background long-running processes (dev server, watcher)
+- `background-exec` (pure data, `PreToolUse`, matches `tool_input.command` on Bash) - background-execution + token-efficient-polling guidance for long-running/never-exiting commands
+- `output-readability` (pure data, `UserPromptSubmit`, keyword match) - self-cancelling reminder to make substantial deliverables (report/review/summary/analysis) human-parsable
 
 **Known limitation (workflow nudge):** the keyword filter biases toward recall, so a non-launch mention of "workflow" (e.g. "fix the CI workflow file") may inject inert guidance. The guidance leads with a conditional guard ("If this prompt will run as a dynamic workflow... if not, ignore") so the model self-cancels false positives. No hook can see the post-prompt workflow decision.
 
@@ -239,9 +240,10 @@ nudges/
   UserPromptSubmit/
     00-improve.json
     10-workflow.json
-    20-background-exec.json
+    30-output-readability.json
   PreToolUse/
     00-plan.json
+    10-background-exec.json
   SubagentStart/
     00-subagent-routing.json
 ```
@@ -281,7 +283,7 @@ The parent directory is authoritative: a rule whose `event` field does not match
 | `description` | no | Intent note, never emitted |
 | `action` | one of | `{ "type": "inject_context", "text": [lines], "append_when": [{ "match": [regex], "text": [lines] }] }` |
 | `handler` | one of | String naming a callable in `nudge_builtins.HANDLERS` (escape hatch) |
-| `criteria` | no | `match`/`exclude` (regex arrays), `match_target` (`prompt`\|`tool_name`\|`agent_type`), `non_slash`, `flags`, `builtin` |
+| `criteria` | no | `match`/`exclude` (regex arrays), `match_target` (`prompt`\|`tool_name`\|`agent_type`\|`command`; `command` reads nested `tool_input.command`), `non_slash`, `flags`, `builtin` |
 | `bypass` | no | `default` (suppress on `*`/`#`/empty for prompt targets) or `none` |
 | `priority` | no | Merge order (lower first); default 100 |
 

@@ -12,9 +12,10 @@ A declarative hook engine driven by a JSON nudge registry. One engine dispatches
 - Reads stdin once, runs the event's rules, merges `inject_context` fragments by priority, emits one JSON object, exits 0 always
 - `improve` nudge (always fires on UserPromptSubmit): evaluates clarity; clear prompts proceed, vague prompts invoke the prompt-improver skill
 - `workflow` nudge: injects model-routing and plan-mode-first HITL guidance for workflow/deep-research/ultracode requests
-- `plan` nudge (PreToolUse on EnterPlanMode): injects plan readability guidance
+- `plan` nudge (PreToolUse, self-gates on tool_name=EnterPlanMode): injects plan readability guidance
 - `subagent-routing` nudge (SubagentStart): injects breadth-over-depth guidance when an Explore or Plan agent spawns
-- `background-exec` nudge: self-cancelling reminder to background long-running processes (dev server, watcher) on keyword match
+- `background-exec` nudge (PreToolUse, matches tool_input.command on Bash): encourages background execution and token-efficient polling for long-running/never-exiting commands
+- `output-readability` nudge (UserPromptSubmit, keyword match): self-cancelling reminder to make substantial deliverables (report/review/summary/analysis) human-parsable
 - Uses AskUserQuestion tool for targeted clarifying questions (1-6 questions)
 <!-- END AUTO-MANAGED -->
 
@@ -59,8 +60,9 @@ A declarative hook engine driven by a JSON nudge registry. One engine dispatches
 **Nudge Registry (nudges/<EventName>/*.json):**
 - `nudges/UserPromptSubmit/00-improve.json` - `improve` handler, always-fires clarity wrapper
 - `nudges/UserPromptSubmit/10-workflow.json` - `workflow` handler, workflow routing guidance
-- `nudges/UserPromptSubmit/20-background-exec.json` - pure data, keyword match, self-cancelling reminder to background long-running processes
-- `nudges/PreToolUse/00-plan.json` - pure data, matcher EnterPlanMode, plan readability guidance
+- `nudges/UserPromptSubmit/30-output-readability.json` - pure data, keyword match, self-cancelling human-parsable-deliverable reminder
+- `nudges/PreToolUse/00-plan.json` - pure data, self-gates on match_target tool_name=EnterPlanMode, plan readability guidance
+- `nudges/PreToolUse/10-background-exec.json` - pure data, match_target command (tool_input.command on Bash), background-execution + token-efficiency guidance
 - `nudges/SubagentStart/00-subagent-routing.json` - pure data, match_target agent_type, breadth-over-depth guidance for Explore/Plan agents
 
 **Skill Layer (skills/prompt-improver/):**
@@ -98,7 +100,7 @@ A declarative hook engine driven by a JSON nudge registry. One engine dispatches
 - Exactly one of `action` (pure data: `{type: inject_context, text: [lines], append_when: [...]}`) or `handler` (string naming a callable in `nudge_builtins.HANDLERS`)
 - `text` is an array of lines joined with newlines at load (clean multiline diffs)
 - `append_when` clauses match against the rule's `match_target` value (not always the prompt) - required for rules with `match_target: agent_type` or `tool_name`
-- Optional `criteria` (absent = always fire): `match`/`exclude` regex arrays, `match_target` (prompt|tool_name|agent_type), `non_slash`, `flags`, `builtin` (allowlisted matcher name)
+- Optional `criteria` (absent = always fire): `match`/`exclude` regex arrays, `match_target` (prompt|tool_name|agent_type|command, where `command` reads the nested `tool_input.command`), `non_slash`, `flags`, `builtin` (allowlisted matcher name)
 - Optional `bypass` (default suppresses on `*`/`#`/empty for prompt targets; `none` disables) and `priority` (int merge order, lower first)
 
 **Plugin auto-discovery:**
