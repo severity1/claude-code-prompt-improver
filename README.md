@@ -210,12 +210,12 @@ Claude proceeds immediately without questions.
 - Named `nudge_builtins` (not `builtins`) because the stdlib `builtins` module is loaded before any user code and would permanently shadow a local `builtins.py`
 
 **Nudges (nudges/*.json) - The Registry:**
-- `improve` (handler) - prompt-clarity evaluation wrapper; always fires; owns `*`/`/`/`#` bypass
-- `workflow` (handler) - model-routing guidance for dynamic-workflow requests; keyword/`/deep-research`/`/effort ultracode`/saved-workflow detection, ultracode clause, `*`/`#` bypass
-- `plan` (pure data, `PreToolUse`, self-gates on `tool_name=EnterPlanMode`) - plan readability guidance
-- `subagent-routing` (pure data, `SubagentStart`, matches `agent_type`) - breadth-over-depth guidance when an Explore or Plan agent spawns
-- `background-exec` (pure data, `PreToolUse`, matches `tool_input.command` on Bash) - background-execution + token-efficient-polling guidance for long-running/never-exiting commands
-- `output-readability` (pure data, `UserPromptSubmit`, keyword match) - self-cancelling reminder to make substantial deliverables (report/review/summary/analysis) human-parsable
+- `improve` - checks whether a submitted prompt is clear enough to act on, and asks for clarification only when it is genuinely vague.
+- `workflow` - when a request looks like a multi-step workflow, suggests planning before running and routing each stage to an appropriately sized model.
+- `plan` - when entering plan mode, encourages a clean, readable plan: terse steps, file-path anchors, no decision history.
+- `subagent-routing` - when a research or planning subagent starts, encourages breadth over depth and lean, conclusion-first reporting.
+- `background-exec` - when a long-running command (dev server, watcher, tail) is about to run, suggests running it in the background and polling only the output that matters.
+- `output-readability` - when the response will be a substantial deliverable (report, review, summary, analysis), encourages a human-readable result: lead with the conclusion, prefer sections and tables, keep it terse.
 
 **Known limitation (workflow nudge):** the keyword filter biases toward recall, so a non-launch mention of "workflow" (e.g. "fix the CI workflow file") may inject inert guidance. The guidance leads with a conditional guard ("If this prompt will run as a dynamic workflow... if not, ignore") so the model self-cancels false positives. No hook can see the post-prompt workflow decision.
 
