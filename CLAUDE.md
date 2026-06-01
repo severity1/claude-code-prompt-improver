@@ -11,7 +11,8 @@ A declarative hook engine driven by a JSON nudge registry. One engine dispatches
 - One engine entry point (`engine.py <EventName>`) dispatched per hook event from `hooks.json`
 - Reads stdin once, runs the event's rules, merges `inject_context` fragments by priority, emits one JSON object, exits 0 always
 - `improve` nudge (always fires on UserPromptSubmit): evaluates clarity; clear prompts proceed, vague prompts invoke the prompt-improver skill
-- `workflow` nudge: injects model-routing and plan-mode-first HITL guidance for workflow/deep-research/ultracode requests
+- `approach-assessment` nudge (UserPromptSubmit, priority 10, keyword match on non-trivial-work verbs, non_slash, ignorecase): injects approach-selection guidance (plan vs subagent vs orchestration vs just do it) and reminds that spawned subagents need context passed explicitly; self-cancels false positives with a leading condition
+- `workflow` nudge (UserPromptSubmit, priority 20): injects model-routing and plan-mode-first HITL guidance for workflow/deep-research/ultracode requests
 - `plan` nudge (PreToolUse, self-gates on tool_name=EnterPlanMode): injects plan readability guidance
 - `subagent-routing` nudge (SubagentStart): injects breadth-over-depth guidance when an Explore or Plan agent spawns
 - `background-exec` nudge (PreToolUse, matches tool_input.command on Bash): encourages background execution and token-efficient polling for long-running/never-exiting commands
@@ -59,7 +60,8 @@ A declarative hook engine driven by a JSON nudge registry. One engine dispatches
 
 **Nudge Registry (nudges/<EventName>/*.json):**
 - `nudges/UserPromptSubmit/00-improve.json` - `improve` handler, always-fires clarity wrapper
-- `nudges/UserPromptSubmit/10-workflow.json` - `workflow` handler, workflow routing guidance
+- `nudges/UserPromptSubmit/10-approach-assessment.json` - pure data, priority 10, keyword match on non-trivial-work verbs (implement/build/refactor/migrate/redesign/rewrite/integrate/set up/across/multiple), non_slash, ignorecase, approach-selection guidance + subagent context reminder
+- `nudges/UserPromptSubmit/20-workflow.json` - `workflow` handler, priority 20, workflow routing guidance
 - `nudges/UserPromptSubmit/30-output-readability.json` - pure data, keyword match, self-cancelling human-parsable-deliverable reminder
 - `nudges/PreToolUse/00-plan.json` - pure data, self-gates on match_target tool_name=EnterPlanMode, plan readability guidance
 - `nudges/PreToolUse/10-background-exec.json` - pure data, match_target command (tool_input.command on Bash), background-execution + token-efficiency guidance
@@ -131,6 +133,7 @@ A declarative hook engine driven by a JSON nudge registry. One engine dispatches
   - `test_rules_for_raising_still_exits_zero`: in-process monkeypatch; forces `rules_for` to raise, asserts `main()` still exits 0 (issue #1)
   - `test_drop_in_fixture_nudge_fires_end_to_end`: writes a fixture nudge JSON, verifies it fires on trigger and is absent on non-match, cleans up in finally (extensibility guarantee)
   - `test_append_when_respects_match_target`: fixture nudge with `match_target=agent_type` and `append_when`; verifies appended text appears when agent_type matches (issue #3)
+  - `test_approach_assessment_fires_on_complexity_keyword` / `test_approach_assessment_silent_on_trivial_prompt`: verify approach-assessment nudge fires on non-trivial-work verbs and stays silent on trivial prompts
 - Builtins tests unit-test `improve`/`workflow`/`saved_workflow_exists` in-process
 - Rules tests cover `validate_rule` rejection cases, the capability matrix, and the loader
 - Skill tests validate file structure, frontmatter, and references
@@ -195,6 +198,8 @@ A declarative hook engine driven by a JSON nudge registry. One engine dispatches
 - Added workflow-guidance.py as a third hook script injecting model-routing guidance for dynamic workflow requests
 - Refactored to a declarative engine: `improve`/`workflow` became named handlers in `nudge_builtins.py`, `plan` became a pure-data nudge row, the three scripts and their two test files were deleted, and the test harness was rewritten onto the engine/rules/builtins seams (parity verified byte-for-byte against the old scripts)
 - Reorganized nudges/ from flat (`nudges/*.json`) to per-event subdirectories (`nudges/<EventName>/*.json`); the loader now globs recursively and enforces that each rule's `event` field matches its parent directory name - files loose in `nudges/` root are skipped; deleted `nudges/mcp-tools.json`
+- Added output-readability nudge (UserPromptSubmit, keyword match, self-cancelling); moved background-exec from UserPromptSubmit to PreToolUse/Bash so it fires only when a Bash command is actually about to run - PreToolUse matcher now covers both EnterPlanMode and Bash
+- Swapped merge priority of approach-assessment and workflow nudges on UserPromptSubmit: approach-assessment (general approach-selection guidance) now fires at priority 10 before workflow (narrow orchestration specialization) at priority 20; files renamed to match (10-approach-assessment.json, 20-workflow.json)
 <!-- END AUTO-MANAGED -->
 
 <!-- AUTO-MANAGED: best-practices -->
@@ -218,9 +223,19 @@ A declarative hook engine driven by a JSON nudge registry. One engine dispatches
 <!-- MANUAL -->
 ## Design Philosophy
 
-- **Rarely intervene** - Most prompts pass through unchanged
+- **Improve the prompt-to-output path** - "prompt improvement" means shaping the total context so the first output lands, not literally rewriting the user's text. Clarifying a vague prompt and injecting a constraint the user would otherwise add by hand are the same job. This is why behavioral nudges (plan, workflow, approach-assessment, background-exec, subagent-routing, output-readability) belong here alongside `improve`.
+- **Rarely intervene** - Most prompts pass through unchanged; each nudge fires only when it applies
+- **Fire wide, self-cancel cheap** - a missed nudge costs a full correction loop, a false fire costs a few ignored tokens. The asymmetry justifies high-recall gates plus a leading "If this is X... if not, ignore" guard so false positives self-cancel at the model
+- **Serve both efficiency and quality, waste no tokens** - every nudge must improve token efficiency and output quality, and the injected text is itself a token cost, so keep it directive: condition plus action, no flourish or restated motivation (modeled on `workflow`). A nudge that spends tokens pushing for more work without a quality payoff is a violation
+- **Steer, don't prescribe** - give the agent the goal and the why, then trust it to find the how (modeled on `workflow`), never a checklist or decision tree. Steering generalizes and self-cancels naturally; prescription reads as a mandatory procedure the agent follows even when it does not fit. Approach guidance (`workflow`, `approach-assessment`) has no single right answer, so it is pure steering; format conventions (`plan`, `output-readability`) have a defensibly right shape, so keep the concrete specifics and soften only the rule-like tone
 - **Trust user intent** - Only ask when genuinely unclear
 - **Use conversation history** - Avoid redundant exploration
 - **Max 1-6 questions** - Enough for complex scenarios, still focused
-- **Transparent** - Evaluation visible in conversation
+- **Transparent** - Injected context visible in conversation
+
+### Authoring rules (contributor guidelines)
+
+- **Audience rule** - hook output is read by a specific audience: `SubagentStart` text is read by the *subagent* (how it should behave), `UserPromptSubmit`/`PreToolUse` text by the *main agent*. Never inject author-side or parent-side advice where it cannot be acted on. (Example: "a subagent cannot see this conversation, so pass it context" is parent-side advice and belongs on a parent-read event like `UserPromptSubmit` (`approach-assessment`), not on `SubagentStart`.)
+- **Timing rule** - `PreToolUse` `additionalContext` lands next to the tool result, read on the *next* model request. For `EnterPlanMode` that context persists for the whole plan-mode session, so it is the right place for pre-presentation guidance (plan readability and the self-review pass) - it covers both initial creation and every revision. An `ExitPlanMode` nudge would land *after* the plan is already presented (too late), and the engine only emits `inject_context`, not `permissionDecision` gating, so it could not block either.
+- **Self-cancel iff high-recall gate** - a nudge gated by a high-recall regex (cannot read intent) leads with a condition and ends with "if not, ignore" so false positives self-cancel cheaply. A nudge gated by an *exact* match (e.g. `plan` on `tool_name=EnterPlanMode`) needs no self-cancel - the condition is already certain at fire time.
 <!-- END MANUAL -->

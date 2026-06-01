@@ -137,7 +137,15 @@ def test_pretooluse_plan_guidance_fires():
         run_engine("PreToolUse", {"tool_name": "EnterPlanMode"}), "PreToolUse"
     )
     assert "decision history" in context
-    assert "rewrite the entire plan clean" in context
+    assert "rewrite the whole plan clean" in context
+
+
+def test_pretooluse_plan_guidance_includes_self_review():
+    """The plan nudge carries the pre-presentation self-review line"""
+    context = context_of(
+        run_engine("PreToolUse", {"tool_name": "EnterPlanMode"}), "PreToolUse"
+    )
+    assert "not checked against the code" in context
 
 
 def test_plan_silent_on_bash():
@@ -194,6 +202,26 @@ def test_output_readability_silent_on_plain_prompt():
         "UserPromptSubmit",
     )
     assert "human-parsable" not in context
+
+
+def test_approach_assessment_fires_on_complexity_keyword():
+    """A multi-file/architectural request triggers the approach-assessment nudge"""
+    context = context_of(
+        run_engine(
+            "UserPromptSubmit", {"prompt": "refactor auth across all services"}
+        ),
+        "UserPromptSubmit",
+    )
+    assert "choose the approach before starting" in context
+
+
+def test_approach_assessment_silent_on_trivial_prompt():
+    """A trivial prompt has the improve wrapper but no approach-assessment guidance"""
+    context = context_of(
+        run_engine("UserPromptSubmit", {"prompt": "fix typo in README"}),
+        "UserPromptSubmit",
+    )
+    assert "choose the approach before starting" not in context
 
 
 def test_subagentstart_routing_fires():

@@ -46,9 +46,18 @@ def test_guidance_content():
     context = output["hookSpecificOutput"]["additionalContext"]
 
     assert "decision history" in context
-    assert "rewrite the entire plan clean" in context
-    assert "terse action steps" in context
+    assert "rewrite the whole plan clean" in context
+    assert "terse action" in context
     assert "problem statement" in context
+
+
+def test_guidance_includes_self_review():
+    """The plan nudge also carries the pre-presentation self-review line"""
+    result = run_hook()
+    output = json.loads(result.stdout)
+    context = output["hookSpecificOutput"]["additionalContext"]
+
+    assert "not checked against the code" in context
 
 
 def test_exit_code_zero():

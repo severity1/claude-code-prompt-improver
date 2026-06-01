@@ -1,16 +1,30 @@
 # Claude Code Prompt Improver
 
-A UserPromptSubmit hook that enriches vague prompts before Claude Code executes them. Uses the AskUserQuestion tool (Claude Code 2.0.22+) for targeted clarifying questions.
+Intelligent prompt optimization for Claude Code. It injects the right context at the right moment - at prompt submit, tool use, and subagent start - so Claude has what it needs before it acts. The goal is a better first output, so you spend fewer turns correcting it.
+
+Prompt improvement here means improving the whole path from your prompt to Claude's output, not just rewriting the words you typed. Clarifying a vague prompt is one way to do that. Supplying a constraint you would otherwise have had to add by hand after a bad first attempt is another. Both land the output sooner.
 
 ![Demo](assets/demo.gif)
 
 ## What It Does
 
-Intercepts prompts and evaluates clarity. Claude then:
-- Checks if the prompt is clear using conversation history
-- For clear prompts: proceeds immediately (zero overhead)
-- For vague prompts: invokes the `prompt-improver` skill to create research plan, gather context, and ask 1-6 grounded questions
-- Proceeds with original request using the clarification
+A small set of targeted nudges fire only when they apply, each one supplying context that would otherwise cost a correction round-trip:
+
+| Nudge | Fires when | Supplies |
+|-------|-----------|----------|
+| `improve` | every prompt (flagship) | clarity check; asks 1-6 grounded questions only when the prompt is genuinely vague |
+| `approach-assessment` | a request looks non-trivial (implement, refactor, migrate, multi-file) | choose the approach before starting - plan, subagent, orchestration, or just do it - and pass a spawned subagent the context it needs |
+| `workflow` | a request looks like a multi-step workflow | plan-first and per-stage model-routing guidance |
+| `output-readability` | the response will be a substantial deliverable | lead with the conclusion, prefer sections and tables, keep it terse |
+| `plan` | entering plan mode | terse, readable plan: file-path anchors, no decision history; re-read for flaws before presenting |
+| `background-exec` | a long-running command (dev server, watcher, tail) is about to run | run it in the background, poll only the output that matters |
+| `subagent-routing` | a research or planning subagent starts | favor breadth over depth, return conclusions not raw dumps |
+
+**The flagship is `improve`.** It evaluates every prompt for clarity:
+- For clear prompts: proceeds immediately (zero skill overhead)
+- For vague prompts: invokes the `prompt-improver` skill to create a research plan, gather context, and ask 1-6 grounded questions, then proceeds with the clarification
+
+The other six fire only when they apply. The keyword-gated ones (`workflow`, `approach-assessment`, `output-readability`, `background-exec`) lead with a condition ("If this is X... if not, ignore"), so a false fire is dismissed cheaply; the exact-gated ones (`plan` on plan-mode entry, `subagent-routing` on a research agent) only fire when the condition is already certain.
 
 **Result:** Better outcomes on the first try, without back-and-forth.
 
@@ -181,11 +195,12 @@ Claude proceeds immediately without questions.
 
 ## Design Philosophy
 
-- **Rarely intervene** - Most prompts pass through unchanged
-- **Trust user intent** - Only ask when genuinely unclear
-- **Use conversation history** - Avoid redundant exploration
-- **Max 1-6 questions** - Enough for complex scenarios, still focused
-- **Transparent** - Evaluation visible in conversation
+- **Improve the prompt-to-output path** - the goal is a right first output. Clarifying a vague prompt is one way; injecting a constraint the user would otherwise add by hand after a bad attempt is another. Both count.
+- **Rarely intervene** - most prompts pass through unchanged; each nudge fires only when it applies.
+- **Fire wide, self-cancel cheap** - a missed nudge costs a full correction loop, a false fire costs a few tokens Claude ignores. That asymmetry justifies high-recall gates, so every nudge leads with a condition ("If this is X... if not, ignore") and dismisses itself when it does not fit.
+- **Trust user intent** - only ask when genuinely unclear; never block.
+- **Max 1-6 questions** - enough for complex scenarios, still focused.
+- **Transparent** - injected context is visible in the conversation.
 
 ## Architecture
 
@@ -211,8 +226,9 @@ Claude proceeds immediately without questions.
 
 **Nudges (nudges/*.json) - The Registry:**
 - `improve` - checks whether a submitted prompt is clear enough to act on, and asks for clarification only when it is genuinely vague.
+- `approach-assessment` - when a request looks non-trivial, raises which approach fits (a reviewable plan, a subagent, heavier orchestration, or just doing it) and reminds that a spawned subagent needs its context passed explicitly.
 - `workflow` - when a request looks like a multi-step workflow, suggests planning before running and routing each stage to an appropriately sized model.
-- `plan` - when entering plan mode, encourages a clean, readable plan: terse steps, file-path anchors, no decision history.
+- `plan` - when entering plan mode, encourages a clean, readable plan: terse steps, file-path anchors, no decision history, and a re-read for flaws before presenting.
 - `subagent-routing` - when a research or planning subagent starts, encourages breadth over depth and lean, conclusion-first reporting.
 - `background-exec` - when a long-running command (dev server, watcher, tail) is about to run, suggests running it in the background and polling only the output that matters.
 - `output-readability` - when the response will be a substantial deliverable (report, review, summary, analysis), encourages a human-readable result: lead with the conclusion, prefer sections and tables, keep it terse.
@@ -239,7 +255,8 @@ A new inject-context nudge is a single JSON file under `nudges/` - no Python cha
 nudges/
   UserPromptSubmit/
     00-improve.json
-    10-workflow.json
+    10-approach-assessment.json
+    20-workflow.json
     30-output-readability.json
   PreToolUse/
     00-plan.json
