@@ -2,33 +2,34 @@
   "hooks": {
     "UserPromptSubmit": [
       {
-        "description": "Improves user prompts by adding clarifying questions",
+        "description": "Declarative hook engine: runs all UserPromptSubmit nudge rules",
         "hooks": [
           {
             "type": "command",
-            "command": "python3 ${CLAUDE_PLUGIN_ROOT}/scripts/improve-prompt.py || python ${CLAUDE_PLUGIN_ROOT}/scripts/improve-prompt.py",
-            "description": "Run the prompt improvement script"
-          }
-        ]
-      },
-      {
-        "description": "Injects model-routing guidance when a dynamic workflow is requested",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 ${CLAUDE_PLUGIN_ROOT}/scripts/workflow-guidance.py || python ${CLAUDE_PLUGIN_ROOT}/scripts/workflow-guidance.py"
+            "command": "python3 ${CLAUDE_PLUGIN_ROOT}/scripts/engine.py UserPromptSubmit || python ${CLAUDE_PLUGIN_ROOT}/scripts/engine.py UserPromptSubmit"
           }
         ]
       }
     ],
     "PreToolUse": [
       {
-        "description": "Injects plan readability guidance when entering plan mode",
-        "matcher": "EnterPlanMode",
+        "description": "Declarative hook engine: runs PreToolUse nudge rules on plan-mode entry and Bash commands",
+        "matcher": "EnterPlanMode|Bash",
         "hooks": [
           {
             "type": "command",
-            "command": "python3 ${CLAUDE_PLUGIN_ROOT}/scripts/plan-guidance.py || python ${CLAUDE_PLUGIN_ROOT}/scripts/plan-guidance.py"
+            "command": "python3 ${CLAUDE_PLUGIN_ROOT}/scripts/engine.py PreToolUse || python ${CLAUDE_PLUGIN_ROOT}/scripts/engine.py PreToolUse"
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "description": "Declarative hook engine: runs SubagentStart nudge rules when an agent spawns",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ${CLAUDE_PLUGIN_ROOT}/scripts/engine.py SubagentStart || python ${CLAUDE_PLUGIN_ROOT}/scripts/engine.py SubagentStart"
           }
         ]
       }

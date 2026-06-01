@@ -1,0 +1,19 @@
+{
+  "id": "approach-assessment",
+  "event": "UserPromptSubmit",
+  "description": "Self-assessing approach nudge. On a request that looks non-trivial (implement/build/refactor/migrate/multi-file), raises the question of which approach fits - plan, subagent, heavier orchestration, or just do it - and reminds that a spawned subagent needs context passed explicitly (parent-side advice, correctly homed on a parent-read event). High-recall keyword gate, so it leads with a condition and self-cancels false positives. Pure data, non-slash, ignorecase.",
+  "criteria": {
+    "match": ["\\b(implement|build|refactor|migrate|redesign|rewrite|integrate|add .* (feature|support)|set up|across (the|all)|multiple)\\b"],
+    "flags": ["ignorecase"],
+    "non_slash": true
+  },
+  "action": {
+    "type": "inject_context",
+    "text": [
+      "If this is more than a quick change, choose the approach before starting: a reviewable plan for multi-file or architectural work, a subagent for exploration that would otherwise fill your context, heavier orchestration only when simpler steps fall short.",
+      "Otherwise just do it - match the effort to the task.",
+      "A subagent cannot see this conversation, so pass it the context it needs."
+    ]
+  },
+  "priority": 10
+}

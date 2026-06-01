@@ -1,0 +1,7 @@
+{
+  "id": "workflow",
+  "event": "UserPromptSubmit",
+  "description": "Model-routing and plan-mode-first guidance when a dynamic workflow is requested. Owns keyword/slash detection, the saved-workflow scan, the ultracode clause, and */# bypass inside the workflow handler.",
+  "handler": "workflow",
+  "priority": 20
+}

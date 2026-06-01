@@ -1,0 +1,20 @@
+{
+  "id": "plan",
+  "event": "PreToolUse",
+  "description": "Plan readability + self-review guidance injected on plan-mode entry. Self-gates on tool_name=EnterPlanMode so it stays silent for the other PreToolUse tools the engine now runs on (e.g. Bash). The EnterPlanMode context persists for the whole plan-mode session, so it covers both initial creation and every revision - the right timing for a pre-presentation review (an ExitPlanMode nudge would land too late).",
+  "criteria": {
+    "match_target": "tool_name",
+    "match": ["^EnterPlanMode$"]
+  },
+  "action": {
+    "type": "inject_context",
+    "text": [
+      "A plan is easier to act on - and keeps both the reviewer and the context lean - when it reads as the current state of intent rather than its history.",
+      "So keep the problem statement but drop the decision history (rejected approaches, revision rationale, prior iterations), and on a revision rewrite the whole plan clean rather than annotating what changed.",
+      "Anchor each step to a real file path (e.g., src/auth.ts:42) and favor a terse action over explanatory prose.",
+      "Before presenting, re-read the plan for flaws that look fine on the first pass: assumptions not checked against the code, steps that contradict each other, drift from what was asked. Fix them first."
+    ]
+  },
+  "bypass": "none",
+  "priority": 0
+}

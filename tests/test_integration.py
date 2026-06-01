@@ -10,16 +10,19 @@ from pathlib import Path
 
 # Paths
 PROJECT_ROOT = Path(__file__).parent.parent
-HOOK_SCRIPT = PROJECT_ROOT / "scripts" / "improve-prompt.py"
+ENGINE = PROJECT_ROOT / "scripts" / "engine.py"
 PLUGIN_JSON = PROJECT_ROOT / ".claude-plugin" / "plugin.json"
 SKILL_DIR = PROJECT_ROOT / "skills" / "prompt-improver"
 
+# scripts/ on sys.path so isolated-fragment asserts can import builtins directly.
+sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
+
 def run_hook(prompt):
-    """Run the hook script with given prompt"""
+    """Run the engine for the UserPromptSubmit event with the given prompt"""
     input_data = json.dumps({"prompt": prompt})
 
     result = subprocess.run(
-        [sys.executable, str(HOOK_SCRIPT)],
+        [sys.executable, str(ENGINE), "UserPromptSubmit"],
         input=input_data,
         capture_output=True,
         text=True
@@ -36,8 +39,8 @@ def test_plugin_configuration():
 
     config = json.loads(PLUGIN_JSON.read_text())
 
-    # Check version is 0.5.4
-    assert config["version"] == "0.5.4", f"Expected version 0.5.4, got {config['version']}"
+    # Check version is 0.6.0
+    assert config["version"] == "0.6.0", f"Expected version 0.6.0, got {config['version']}"
 
     # Check hooks field is NOT present (standard hooks/hooks.json is auto-discovered)
     assert "hooks" not in config, "The 'hooks' field should not be present (standard location is auto-discovered)"
@@ -109,27 +112,40 @@ def test_skill_file_integrity():
     print("✓ All skill files present and valid")
 
 def test_token_overhead():
-    """Test that hook overhead is reasonable"""
-    output = run_hook("test")
+    """Each matched nudge fragment stays within the per-fragment token budget.
 
-    context = output["hookSpecificOutput"]["additionalContext"]
+    Isolated-fragment unit assert (in-process): render every bundled nudge in
+    isolation and confirm none alone busts the 250-token budget. Fragments can
+    legitimately co-fire and merge (e.g. improve + workflow on a workflow
+    prompt), so the guard is deliberately per-fragment - matching main's
+    separate-hook behavior, where each hook emitted its own bounded context and
+    Claude Code concatenated them.
+    """
+    import rules as rules_mod
+    import nudge_builtins
 
-    # Rough character count (tokens ≈ chars/4 for English)
-    char_count = len(context)
-    estimated_tokens = char_count // 4
+    # Triggering inputs so handler rules actually emit a fragment to measure.
+    handler_inputs = {
+        "improve": {"prompt": "fix the bug"},
+        "workflow": {"prompt": "build a workflow to migrate files"},
+    }
 
-    # New version should be ~200-220 tokens (evaluation prompt with preface instruction)
-    # Old v0.3.2 was ~275 tokens (embedded evaluation logic)
-    assert estimated_tokens < 250, \
-        f"Hook overhead too high: ~{estimated_tokens} tokens (expected <250)"
+    for rule in rules_mod.load_rules():
+        if "handler" in rule:
+            fragment = nudge_builtins.HANDLERS[rule["handler"]](
+                handler_inputs.get(rule["handler"], {"prompt": "x"})
+            ) or ""
+        else:
+            action = rule.get("action", {})
+            fragment = "\n".join(action.get("text", []))
+            for clause in action.get("append_when", []):
+                fragment += " " + " ".join(clause.get("text", []))
 
-    # Should be less than old version
-    old_estimated_tokens = 275
-    if estimated_tokens < old_estimated_tokens:
-        reduction_percent = ((old_estimated_tokens - estimated_tokens) / old_estimated_tokens) * 100
-        print(f"✓ Token overhead acceptable: ~{estimated_tokens} tokens (<250), ~{reduction_percent:.0f}% reduction from v0.3.2")
-    else:
-        print(f"✓ Token overhead acceptable: ~{estimated_tokens} tokens (<250)")
+        estimated_tokens = len(fragment) // 4
+        assert estimated_tokens < 250, \
+            f"Nudge {rule['id']!r} fragment too large: ~{estimated_tokens} tokens (expected <250)"
+
+    print("✓ Every matched nudge fragment stays within the 250-token budget")
 
 def test_hook_output_consistency():
     """Test that hook output is consistent across different prompts"""
@@ -157,13 +173,16 @@ def test_hook_output_consistency():
 
 def test_architecture_separation():
     """Test that architecture properly separates concerns"""
-    # Hook should be reasonably sized (< 80 lines)
-    hook_lines = len(HOOK_SCRIPT.read_text().split("\n"))
-    assert hook_lines < 80, f"Hook too large: {hook_lines} lines (expected <80)"
+    # Engine entry point should exist and stay a small dispatcher (< 200 lines)
+    assert ENGINE.exists(), "scripts/engine.py not found"
+    engine_lines = len(ENGINE.read_text().split("\n"))
+    assert engine_lines < 200, f"Engine too large: {engine_lines} lines (expected <200)"
 
-    # Hook should contain evaluation logic
-    hook_content = HOOK_SCRIPT.read_text()
-    assert "PROMPT EVALUATION" in hook_content or "EVALUATE" in hook_content
+    # The evaluation wrapper lives in the builtins module, not the engine.
+    builtins_content = (PROJECT_ROOT / "scripts" / "nudge_builtins.py").read_text()
+    assert "PROMPT EVALUATION" in builtins_content
+    assert "PROMPT EVALUATION" not in ENGINE.read_text(), \
+        "Engine should dispatch, not embed evaluation prose"
 
     # SKILL.md should contain research and question logic (now 4 phases)
     skill_content = (SKILL_DIR / "SKILL.md").read_text()
@@ -174,7 +193,7 @@ def test_architecture_separation():
     # Skill should mention being invoked for vague prompts
     assert "vague" in skill_content.lower()
 
-    print("✓ Architecture properly separates concerns (hook evaluates, skill enriches)")
+    print("✓ Architecture properly separates concerns (engine dispatches, builtins/rules enrich)")
 
 def run_all_tests():
     """Run all integration tests"""

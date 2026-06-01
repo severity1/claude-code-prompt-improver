@@ -1,16 +1,30 @@
 # Claude Code Prompt Improver
 
-A UserPromptSubmit hook that enriches vague prompts before Claude Code executes them. Uses the AskUserQuestion tool (Claude Code 2.0.22+) for targeted clarifying questions.
+Intelligent prompt optimization for Claude Code. It injects the right context at the right moment - at prompt submit, tool use, and subagent start - so Claude has what it needs before it acts. The goal is a better first output, so you spend fewer turns correcting it.
+
+Prompt improvement here means improving the whole path from your prompt to Claude's output, not just rewriting the words you typed. Clarifying a vague prompt is one way to do that. Supplying a constraint you would otherwise have had to add by hand after a bad first attempt is another. Both land the output sooner.
 
 ![Demo](assets/demo.gif)
 
 ## What It Does
 
-Intercepts prompts and evaluates clarity. Claude then:
-- Checks if the prompt is clear using conversation history
-- For clear prompts: proceeds immediately (zero overhead)
-- For vague prompts: invokes the `prompt-improver` skill to create research plan, gather context, and ask 1-6 grounded questions
-- Proceeds with original request using the clarification
+A small set of targeted nudges fire only when they apply, each one supplying context that would otherwise cost a correction round-trip:
+
+| Nudge | Fires when | Supplies |
+|-------|-----------|----------|
+| `improve` | every prompt (flagship) | clarity check; asks 1-6 grounded questions only when the prompt is genuinely vague |
+| `approach-assessment` | a request looks non-trivial (implement, refactor, migrate, multi-file) | choose the approach before starting - plan, subagent, orchestration, or just do it - and pass a spawned subagent the context it needs |
+| `workflow` | a request looks like a multi-step workflow | plan-first and per-stage model-routing guidance |
+| `output-readability` | the response will be a substantial deliverable | lead with the conclusion, prefer sections and tables, keep it terse |
+| `plan` | entering plan mode | terse, readable plan: file-path anchors, no decision history; re-read for flaws before presenting |
+| `background-exec` | a long-running command (dev server, watcher, tail) is about to run | run it in the background, poll only the output that matters |
+| `subagent-routing` | a research or planning subagent starts | favor breadth over depth, return conclusions not raw dumps |
+
+**The flagship is `improve`.** It evaluates every prompt for clarity:
+- For clear prompts: proceeds immediately (zero skill overhead)
+- For vague prompts: invokes the `prompt-improver` skill to create a research plan, gather context, and ask 1-6 grounded questions, then proceeds with the clarification
+
+The other six fire only when they apply. The keyword-gated ones (`workflow`, `approach-assessment`, `output-readability`, `background-exec`) lead with a condition ("If this is X... if not, ignore"), so a false fire is dismissed cheaply; the exact-gated ones (`plan` on plan-mode entry, `subagent-routing` on a research agent) only fire when the condition is already certain.
 
 **Result:** Better outcomes on the first try, without back-and-forth.
 
@@ -93,11 +107,15 @@ Verify installation with `/plugin` command. You should see "1 plugin available, 
 
 ### Option 3: Manual Installation
 
-**1. Copy the hook:**
+**1. Copy the engine, rules, builtins, and nudges:**
 ```bash
-cp scripts/improve-prompt.py ~/.claude/hooks/
-chmod +x ~/.claude/hooks/improve-prompt.py
+mkdir -p ~/.claude/hooks/prompt-improver/scripts
+cp scripts/engine.py scripts/rules.py scripts/nudge_builtins.py ~/.claude/hooks/prompt-improver/scripts/
+cp -r nudges ~/.claude/hooks/prompt-improver/nudges
+chmod +x ~/.claude/hooks/prompt-improver/scripts/engine.py
 ```
+
+The engine resolves `nudges/` relative to its own location and loads it recursively (`nudges/<EventName>/*.json`), so copy the whole `nudges/` tree and keep `scripts/` and `nudges/` siblings under the same parent.
 
 **2. Update `~/.claude/settings.json`:**
 ```json
@@ -108,7 +126,28 @@ chmod +x ~/.claude/hooks/improve-prompt.py
         "hooks": [
           {
             "type": "command",
-            "command": "python3 ~/.claude/hooks/improve-prompt.py"
+            "command": "python3 ~/.claude/hooks/prompt-improver/scripts/engine.py UserPromptSubmit"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "EnterPlanMode|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ~/.claude/hooks/prompt-improver/scripts/engine.py PreToolUse"
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ~/.claude/hooks/prompt-improver/scripts/engine.py SubagentStart"
           }
         ]
       }
@@ -156,42 +195,116 @@ Claude proceeds immediately without questions.
 
 ## Design Philosophy
 
-- **Rarely intervene** - Most prompts pass through unchanged
-- **Trust user intent** - Only ask when genuinely unclear
-- **Use conversation history** - Avoid redundant exploration
-- **Max 1-6 questions** - Enough for complex scenarios, still focused
-- **Transparent** - Evaluation visible in conversation
+- **Improve the prompt-to-output path** - the goal is a right first output. Clarifying a vague prompt is one way; injecting a constraint the user would otherwise add by hand after a bad attempt is another. Both count.
+- **Rarely intervene** - most prompts pass through unchanged; each nudge fires only when it applies.
+- **Fire wide, self-cancel cheap** - a missed nudge costs a full correction loop, a false fire costs a few tokens Claude ignores. That asymmetry justifies high-recall gates, so every nudge leads with a condition ("If this is X... if not, ignore") and dismisses itself when it does not fit.
+- **Trust user intent** - only ask when genuinely unclear; never block.
+- **Max 1-6 questions** - enough for complex scenarios, still focused.
+- **Transparent** - injected context is visible in the conversation.
 
 ## Architecture
 
-**v0.4.0:** Skill-based architecture with hook-level evaluation.
+**Declarative hook engine driven by a JSON nudge registry.** One engine dispatches every hook event; each capability is a data row in `nudges/*.json`, not a separate script. Adding an inject-context nudge is a single JSON file with zero Python changes.
 
-**Hook (scripts/improve-prompt.py) - Evaluation Orchestrator:**
-- Intercepts via stdin/stdout JSON (~70 lines)
-- Handles bypass prefixes: `*`, `/`, `#`
-- Wraps prompts with evaluation instructions (~189 tokens)
-- Claude evaluates clarity using conversation history
-- If vague: Instructs Claude to invoke `prompt-improver` skill
+**Engine (scripts/engine.py) - Event Dispatcher:**
+- Invoked as `engine.py <EventName>` (one entry per event in `hooks.json`)
+- Reads stdin once, runs the event's rules, merges `inject_context` fragments by `priority` with a blank-line join, emits one `hookSpecificOutput` object
+- Exits 0 on every path - a missing/unknown event or an event with no rules is a clean no-op that never reads stdin
+- One bad rule is isolated in a `try/except` so it cannot suppress the others
 
-**Hook (scripts/workflow-guidance.py) - Workflow Routing Guidance:**
-- Second `UserPromptSubmit` hook; fires only when a dynamic workflow is requested
-- Triggers on the `workflow`/`workflows` keyword, `/deep-research`, `/effort ultracode`, and saved workflow commands under `.claude/workflows/` (cwd) or `~/.claude/workflows/`
-- The `*` bypass prefix and non-slash prompts skip all filesystem scanning
-- Injects model-agnostic routing guidance: reserve the session model for planning, strategy, and orchestration; route implementation to a smaller, cheaper model
-- Advises plan-mode-first as extra human review before a multi-agent run (advisory, not a replacement for the workflow's own approval gate)
-- `/effort ultracode` appends a clause applying the routing to every task that session
-- Silent on every non-workflow prompt (zero output), so the only cost lands where a multi-agent run is about to begin
-- **Known limitation:** the keyword filter biases toward recall, so a non-launch mention of "workflow" (e.g., "fix the CI workflow file") may inject inert guidance that the model ignores via the conditional guard. No hook can see the post-prompt workflow decision.
+**Rules (scripts/rules.py) - Loader + Validation:**
+- Loads and validates `nudges/*.json`; invalid rows are skipped with a stderr note (loading never raises into the engine)
+- `validate_rule` enforces: required `id`/`event`, known event, `action` XOR `handler`, action type legal for the event, compilable regexes, allowlisted `builtin`/`handler` names, unique id
+- Owns the event->capability matrix (v1: `inject_context` on `UserPromptSubmit`, `PreToolUse`, `SubagentStart`)
+- Regexes are compiled once per dispatched event, not at file load
+
+**Builtins (scripts/nudge_builtins.py) - Escape Hatch:**
+- Two allowlist dicts referenced by string name only: `HANDLERS` (`improve`, `workflow`) and `MATCHERS` (`saved_workflow_exists`)
+- A rule with `"handler": "improve"` runs the named handler, which owns its full fragment including bypass logic; a rule with `"criteria": {"builtin": "saved_workflow_exists"}` runs the named matcher
+- No `eval`/`importlib`/`getattr`-on-path: an unknown name is a load-time skip, never an arbitrary import
+- Named `nudge_builtins` (not `builtins`) because the stdlib `builtins` module is loaded before any user code and would permanently shadow a local `builtins.py`
+
+**Nudges (nudges/*.json) - The Registry:**
+- `improve` - checks whether a submitted prompt is clear enough to act on, and asks for clarification only when it is genuinely vague.
+- `approach-assessment` - when a request looks non-trivial, raises which approach fits (a reviewable plan, a subagent, heavier orchestration, or just doing it) and reminds that a spawned subagent needs its context passed explicitly.
+- `workflow` - when a request looks like a multi-step workflow, suggests planning before running and routing each stage to an appropriately sized model.
+- `plan` - when entering plan mode, encourages a clean, readable plan: terse steps, file-path anchors, no decision history, and a re-read for flaws before presenting.
+- `subagent-routing` - when a research or planning subagent starts, encourages breadth over depth and lean, conclusion-first reporting.
+- `background-exec` - when a long-running command (dev server, watcher, tail) is about to run, suggests running it in the background and polling only the output that matters.
+- `output-readability` - when the response will be a substantial deliverable (report, review, summary, analysis), encourages a human-readable result: lead with the conclusion, prefer sections and tables, keep it terse.
+
+**Known limitation (workflow nudge):** the keyword filter biases toward recall, so a non-launch mention of "workflow" (e.g. "fix the CI workflow file") may inject inert guidance. The guidance leads with a conditional guard ("If this prompt will run as a dynamic workflow... if not, ignore") so the model self-cancels false positives. No hook can see the post-prompt workflow decision.
 
 **Skill (skills/prompt-improver/) - Research & Question Logic:**
 - **SKILL.md**: Research and question workflow (~170 lines)
-  - Assumes prompt already determined vague by hook
+  - Assumes prompt already determined vague by the engine's improve nudge
   - 4-phase process: Research → Questions → Clarify → Execute
   - Links to reference files for progressive disclosure
 - **references/**: Detailed guides loaded on-demand
   - `question-patterns.md`: Question templates (200-300 lines)
   - `research-strategies.md`: Context gathering (300-400 lines)
   - `examples.md`: Real transformations (200-300 lines)
+
+## How to Add a Nudge
+
+A new inject-context nudge is a single JSON file under `nudges/` - no Python changes.
+
+**1. Drop a file in the event's subdirectory.** Nudges live in `nudges/<EventName>/`, one folder per hook event, and files are named `<priority>-<id>.json` so each folder sorts in merge order:
+
+```
+nudges/
+  UserPromptSubmit/
+    00-improve.json
+    10-approach-assessment.json
+    20-workflow.json
+    30-output-readability.json
+  PreToolUse/
+    00-plan.json
+    10-background-exec.json
+  SubagentStart/
+    00-subagent-routing.json
+```
+
+For example, `nudges/UserPromptSubmit/20-kubernetes.json`:
+```json
+{
+  "id": "kubernetes",
+  "event": "UserPromptSubmit",
+  "description": "What this nudge does and why (never emitted - JSON has no comments).",
+  "criteria": {
+    "match": ["\\bkubernetes\\b"],
+    "flags": ["ignorecase"],
+    "non_slash": true
+  },
+  "action": {
+    "type": "inject_context",
+    "text": [
+      "If this task touches Kubernetes manifests: validate with kubeconform before applying.",
+      "If not, ignore this guidance."
+    ]
+  },
+  "priority": 20
+}
+```
+
+The parent directory is authoritative: a rule whose `event` field does not match its folder is skipped with a stderr note (so a file in `PreToolUse/` cannot claim `"event": "UserPromptSubmit"`). The filename's priority prefix is cosmetic - the engine sorts fragments by the JSON `priority` field, not the filename, so keep the two in sync. Priority is event-scoped: it only orders rules that share an event (e.g. `improve` at 0 and `workflow` at 10 both merge on `UserPromptSubmit`; `plan` at 0 never competes with them). Pad the prefix to match your widest priority (2 digits is safe for the gap convention 0/10/20; a priority >= 100 sorts wrong against 2-digit names).
+
+**2. That's it.** The engine recursively auto-loads every `nudges/**/*.json` on the next prompt. No `hooks.json` edit is needed unless the nudge targets a new event (each event needs one dispatch entry in `hooks.json` and one new `nudges/<EventName>/` folder).
+
+**Schema reference:**
+
+| Field | Required | Meaning |
+|-------|----------|---------|
+| `id` | yes | Unique rule id |
+| `event` | yes | `UserPromptSubmit`, `PreToolUse`, or `SubagentStart` |
+| `description` | no | Intent note, never emitted |
+| `action` | one of | `{ "type": "inject_context", "text": [lines], "append_when": [{ "match": [regex], "text": [lines] }] }` |
+| `handler` | one of | String naming a callable in `nudge_builtins.HANDLERS` (escape hatch) |
+| `criteria` | no | `match`/`exclude` (regex arrays), `match_target` (`prompt`\|`tool_name`\|`agent_type`\|`command`; `command` reads nested `tool_input.command`), `non_slash`, `flags`, `builtin` |
+| `bypass` | no | `default` (suppress on `*`/`#`/empty for prompt targets) or `none` |
+| `priority` | no | Merge order (lower first); default 100 |
+
+Provide exactly one of `action` or `handler`. `text` is an array of lines joined with newlines at load (clean multiline diffs). `append_when` models a conditional clause declaratively (used by the ultracode clause). Invalid rows are skipped with a stderr note; the engine still exits 0.
 
 **Flow for Clear Prompts:**
 1. Hook wraps with evaluation prompt (~189 tokens)
