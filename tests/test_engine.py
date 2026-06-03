@@ -212,7 +212,7 @@ def test_approach_assessment_fires_on_complexity_keyword():
         ),
         "UserPromptSubmit",
     )
-    assert "choose the approach before starting" in context
+    assert "choose how to carry it out" in context
 
 
 def test_approach_assessment_silent_on_trivial_prompt():
@@ -221,7 +221,46 @@ def test_approach_assessment_silent_on_trivial_prompt():
         run_engine("UserPromptSubmit", {"prompt": "fix typo in README"}),
         "UserPromptSubmit",
     )
-    assert "choose the approach before starting" not in context
+    assert "choose how to carry it out" not in context
+
+
+def test_ask_user_question_fires_on_decision_keyword():
+    """A prompt with a user-owned decision fork triggers the ask-user-question nudge"""
+    context = context_of(
+        run_engine(
+            "UserPromptSubmit", {"prompt": "which database should we use for this"}
+        ),
+        "UserPromptSubmit",
+    )
+    assert "AskUserQuestion" in context
+    assert "think critically" in context
+
+
+def test_ask_user_question_silent_on_plain_prompt():
+    """A prompt with no decision language has the improve wrapper but no ask guidance"""
+    context = context_of(
+        run_engine("UserPromptSubmit", {"prompt": "add a comment to utils.py"}),
+        "UserPromptSubmit",
+    )
+    assert "AskUserQuestion" not in context
+
+
+def test_plan_mode_evaluates_on_any_prompt():
+    """The plan-mode nudge always evaluates - it fires even with no complexity keyword"""
+    context = context_of(
+        run_engine("UserPromptSubmit", {"prompt": "fix typo in README"}),
+        "UserPromptSubmit",
+    )
+    assert "judge whether this task is complex" in context
+
+
+def test_plan_mode_silent_on_bypass():
+    """The plan-mode nudge respects the engine's default bypass (* prefix stays silent)"""
+    context = context_of(
+        run_engine("UserPromptSubmit", {"prompt": "* build a workflow"}),
+        "UserPromptSubmit",
+    )
+    assert "judge whether this task is complex" not in context
 
 
 def test_subagentstart_routing_fires():

@@ -1,0 +1,19 @@
+{
+  "id": "ask-user-question",
+  "event": "UserPromptSubmit",
+  "description": "Self-cancelling nudge to route genuine user-owned decisions through the AskUserQuestion tool with concrete options, and to research first when context is too thin to frame those options. High-recall keyword gate on decision/fork language, so it leads with a condition; the 'pick a default and move on' counterweight doubles as the self-cancel for false positives and keeps it from pushing constant interruptions. Pure data, non-slash, ignorecase.",
+  "criteria": {
+    "match": ["\\b(which|should (i|we)|prefer|choose|choice|decide|decision|options?|recommend\\w*|better|versus|vs|trade-?offs?|pick)\\b"],
+    "flags": ["ignorecase"],
+    "non_slash": true
+  },
+  "action": {
+    "type": "inject_context",
+    "text": [
+      "If carrying out this request means making a decision that is genuinely the user's (an ambiguous fork, a real tradeoff, missing requirements): ask with the AskUserQuestion tool rather than guessing or burying the choice in prose - concrete options with their tradeoffs let the user react and think critically.",
+      "When you lack the context to frame those options well, research and explore first so the questions are specific and grounded, not generic.",
+      "For minor or reversible choices, pick a sensible default, note it, and proceed - only interrupt for decisions that genuinely need the user."
+    ]
+  },
+  "priority": 40
+}
