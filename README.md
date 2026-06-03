@@ -13,18 +13,22 @@ A small set of targeted nudges fire only when they apply, each one supplying con
 | Nudge | Fires when | Supplies |
 |-------|-----------|----------|
 | `improve` | every prompt (flagship) | clarity check; asks 1-6 grounded questions only when the prompt is genuinely vague |
-| `approach-assessment` | a request looks non-trivial (implement, refactor, migrate, multi-file) | choose the approach before starting - plan, subagent, orchestration, or just do it - and pass a spawned subagent the context it needs |
+| `approach-assessment` | a request looks non-trivial (implement, refactor, migrate, multi-file) | choose how to carry it out - subagent, heavier orchestration, or just do it - and pass a spawned subagent the context it needs |
 | `workflow` | a request looks like a multi-step workflow | plan-first and per-stage model-routing guidance |
 | `output-readability` | the response will be a substantial deliverable | lead with the conclusion, prefer sections and tables, keep it terse |
+| `ask-user-question` | a request hides a decision that is genuinely yours (a fork, a real tradeoff, missing requirements) | ask via the AskUserQuestion tool with concrete options so you can think critically; research first when context is thin; default on minor or reversible choices |
+| `plan-mode` | every prompt (alongside `improve`) | assess whether the task is complex enough to warrant a plan reviewed before any code; enter plan mode if so, otherwise proceed |
 | `plan` | entering plan mode | terse, readable plan: file-path anchors, no decision history; re-read for flaws before presenting |
 | `background-exec` | a long-running command (dev server, watcher, tail) is about to run | run it in the background, poll only the output that matters |
 | `subagent-routing` | a research or planning subagent starts | favor breadth over depth, return conclusions not raw dumps |
 
-**The flagship is `improve`.** It evaluates every prompt for clarity:
+**Two nudges evaluate every prompt.** `improve` checks clarity:
 - For clear prompts: proceeds immediately (zero skill overhead)
 - For vague prompts: invokes the `prompt-improver` skill to create a research plan, gather context, and ask 1-6 grounded questions, then proceeds with the clarification
 
-The other six fire only when they apply. The keyword-gated ones (`workflow`, `approach-assessment`, `output-readability`, `background-exec`) lead with a condition ("If this is X... if not, ignore"), so a false fire is dismissed cheaply; the exact-gated ones (`plan` on plan-mode entry, `subagent-routing` on a research agent) only fire when the condition is already certain.
+`plan-mode` runs alongside it, judging whether the task is complex enough to plan before acting - it self-cancels on anything trivial.
+
+The other seven fire only when they apply. The keyword-gated ones (`workflow`, `approach-assessment`, `output-readability`, `ask-user-question`, `background-exec`) lead with a condition ("If this is X... if not, ignore"), so a false fire is dismissed cheaply; the exact-gated ones (`plan` on plan-mode entry, `subagent-routing` on a research agent) only fire when the condition is already certain.
 
 **Result:** Better outcomes on the first try, without back-and-forth.
 
@@ -226,8 +230,10 @@ Claude proceeds immediately without questions.
 
 **Nudges (nudges/*.json) - The Registry:**
 - `improve` - checks whether a submitted prompt is clear enough to act on, and asks for clarification only when it is genuinely vague.
-- `approach-assessment` - when a request looks non-trivial, raises which approach fits (a reviewable plan, a subagent, heavier orchestration, or just doing it) and reminds that a spawned subagent needs its context passed explicitly.
+- `approach-assessment` - when a request looks non-trivial, raises how to carry it out (a subagent, heavier orchestration, or just doing it) and reminds that a spawned subagent needs its context passed explicitly.
 - `workflow` - when a request looks like a multi-step workflow, suggests planning before running and routing each stage to an appropriately sized model.
+- `ask-user-question` - when a request hides a decision that is genuinely the user's (a fork, a real tradeoff, missing requirements), routes it through the AskUserQuestion tool with concrete options, grounds the questions in research when context is thin, and defaults on minor or reversible choices.
+- `plan-mode` - evaluates every prompt: judges whether the task is complex, multi-step, ambiguous, or architectural enough to warrant a plan reviewed before any code is written, and enters plan mode if so. Self-cancels on trivial work. Owns "whether to plan at all"; `approach-assessment` owns "which approach".
 - `plan` - when entering plan mode, encourages a clean, readable plan: terse steps, file-path anchors, no decision history, and a re-read for flaws before presenting.
 - `subagent-routing` - when a research or planning subagent starts, encourages breadth over depth and lean, conclusion-first reporting.
 - `background-exec` - when a long-running command (dev server, watcher, tail) is about to run, suggests running it in the background and polling only the output that matters.
@@ -258,6 +264,8 @@ nudges/
     10-approach-assessment.json
     20-workflow.json
     30-output-readability.json
+    40-ask-user-question.json
+    50-plan-mode.json
   PreToolUse/
     00-plan.json
     10-background-exec.json
@@ -287,7 +295,7 @@ For example, `nudges/UserPromptSubmit/20-kubernetes.json`:
 }
 ```
 
-The parent directory is authoritative: a rule whose `event` field does not match its folder is skipped with a stderr note (so a file in `PreToolUse/` cannot claim `"event": "UserPromptSubmit"`). The filename's priority prefix is cosmetic - the engine sorts fragments by the JSON `priority` field, not the filename, so keep the two in sync. Priority is event-scoped: it only orders rules that share an event (e.g. `improve` at 0 and `workflow` at 10 both merge on `UserPromptSubmit`; `plan` at 0 never competes with them). Pad the prefix to match your widest priority (2 digits is safe for the gap convention 0/10/20; a priority >= 100 sorts wrong against 2-digit names).
+The parent directory is authoritative: a rule whose `event` field does not match its folder is skipped with a stderr note (so a file in `PreToolUse/` cannot claim `"event": "UserPromptSubmit"`). The filename's priority prefix is cosmetic - the engine sorts fragments by the JSON `priority` field, not the filename, so keep the two in sync. Priority is event-scoped: it only orders rules that share an event (e.g. `improve` at 0 and `workflow` at 20 both merge on `UserPromptSubmit`; `plan` at 0 never competes with them). Pad the prefix to match your widest priority (2 digits is safe for the gap convention 0/10/20/.../50; a priority >= 100 sorts wrong against 2-digit names).
 
 **2. That's it.** The engine recursively auto-loads every `nudges/**/*.json` on the next prompt. No `hooks.json` edit is needed unless the nudge targets a new event (each event needs one dispatch entry in `hooks.json` and one new `nudges/<EventName>/` folder).
 
