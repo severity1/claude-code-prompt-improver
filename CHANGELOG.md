@@ -2,6 +2,17 @@
 
 All notable changes to the Claude Code Prompt Improver project.
 
+## [0.6.1] - 2026-06-03
+
+### Added
+- `ask-user-question` nudge (`nudges/UserPromptSubmit/40-ask-user-question.json`): keyword-gated on decision/fork language (which/should/prefer/choose/decide/options/recommend/better/vs/trade-offs/pick). Routes genuine user-owned decisions through the `AskUserQuestion` tool with concrete options so the user can think critically, grounds questions in research when context is thin, and defers to a sensible default for minor or reversible choices. Self-cancels false positives via a leading condition
+- `plan-mode` nudge (`nudges/UserPromptSubmit/50-plan-mode.json`): `non_slash`-only criteria with no `match` patterns, so it always evaluates. Injects an eval-then-branch instruction - judge whether the task is complex, multi-step, ambiguous, or architectural enough to warrant a reviewed plan, enter plan mode if so, otherwise proceed. Complexity is not lexical, so it cannot be keyword-gated; the open gate evaluates every task regardless of wording while the engine's default bypass keeps `*`/`#`/empty silent
+- `tests/test_engine.py` gains a plan-mode pair (always-fires on a no-keyword prompt, stays silent under `*` bypass) and an `ask-user-question` pair (fires on decision language, silent on a plain prompt)
+
+### Changed
+- `approach-assessment` nudge: trimmed the plan line from its guidance text and description so it owns "which approach" (subagent vs orchestration vs just do it) while `plan-mode` owns "whether to plan at all"; the two no longer overlap
+- Bumped plugin version to 0.6.1
+
 ## [0.5.4] - 2026-05-29
 
 ### Added

@@ -1,0 +1,16 @@
+{
+  "id": "plan-mode",
+  "event": "UserPromptSubmit",
+  "description": "Always-evaluate plan-mode wrapper. Complexity is not lexical (a one-line ask can be deep, a verbose ask can be trivial), so this cannot be keyword-gated - it injects an evaluation instruction on every real prompt and lets the model self-assess against full context, the way improve does for vagueness. Pure data with a non_slash-only criteria block: no match patterns means it always evaluates, but the criteria block still routes through the engine's default bypass so */#/empty and slash commands stay silent. Owns the 'whether to plan at all' judgment; approach-assessment owns 'which approach'.",
+  "criteria": {
+    "non_slash": true
+  },
+  "action": {
+    "type": "inject_context",
+    "text": [
+      "Before starting, judge whether this task is complex, multi-step, ambiguous, or architectural enough to benefit from a plan reviewed before any code is written - if so, enter plan mode first to align on the approach.",
+      "If it is straightforward or a single clear step, just proceed - do not plan trivial work."
+    ]
+  },
+  "priority": 50
+}

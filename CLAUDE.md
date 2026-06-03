@@ -11,12 +11,14 @@ A declarative hook engine driven by a JSON nudge registry. One engine dispatches
 - One engine entry point (`engine.py <EventName>`) dispatched per hook event from `hooks.json`
 - Reads stdin once, runs the event's rules, merges `inject_context` fragments by priority, emits one JSON object, exits 0 always
 - `improve` nudge (always fires on UserPromptSubmit): evaluates clarity; clear prompts proceed, vague prompts invoke the prompt-improver skill
-- `approach-assessment` nudge (UserPromptSubmit, priority 10, keyword match on non-trivial-work verbs, non_slash, ignorecase): injects approach-selection guidance (plan vs subagent vs orchestration vs just do it) and reminds that spawned subagents need context passed explicitly; self-cancels false positives with a leading condition
+- `approach-assessment` nudge (UserPromptSubmit, priority 10, keyword match on non-trivial-work verbs, non_slash, ignorecase): injects approach-selection guidance (subagent vs orchestration vs just do it) and reminds that spawned subagents need context passed explicitly; self-cancels false positives with a leading condition
 - `workflow` nudge (UserPromptSubmit, priority 20): injects model-routing and plan-mode-first HITL guidance for workflow/deep-research/ultracode requests
+- `plan-mode` nudge (UserPromptSubmit, priority 50, non_slash, always-evaluate): judges whether task complexity warrants entering plan mode before starting; owns the 'whether to plan at all' decision; approach-assessment owns 'which approach'
 - `plan` nudge (PreToolUse, self-gates on tool_name=EnterPlanMode): injects plan readability guidance
 - `subagent-routing` nudge (SubagentStart): injects breadth-over-depth guidance when an Explore or Plan agent spawns
 - `background-exec` nudge (PreToolUse, matches tool_input.command on Bash): encourages background execution and token-efficient polling for long-running/never-exiting commands
 - `output-readability` nudge (UserPromptSubmit, keyword match): self-cancelling reminder to make substantial deliverables (report/review/summary/analysis) human-parsable
+- `ask-user-question` nudge (UserPromptSubmit, priority 40, keyword match on decision/fork language, non_slash, ignorecase): self-cancelling nudge to route genuine user-owned decisions through AskUserQuestion tool with concrete options; research first when context is thin; pick sensible default for minor/reversible choices
 - Uses AskUserQuestion tool for targeted clarifying questions (1-6 questions)
 <!-- END AUTO-MANAGED -->
 
@@ -60,9 +62,11 @@ A declarative hook engine driven by a JSON nudge registry. One engine dispatches
 
 **Nudge Registry (nudges/<EventName>/*.json):**
 - `nudges/UserPromptSubmit/00-improve.json` - `improve` handler, always-fires clarity wrapper
-- `nudges/UserPromptSubmit/10-approach-assessment.json` - pure data, priority 10, keyword match on non-trivial-work verbs (implement/build/refactor/migrate/redesign/rewrite/integrate/set up/across/multiple), non_slash, ignorecase, approach-selection guidance + subagent context reminder
+- `nudges/UserPromptSubmit/10-approach-assessment.json` - pure data, priority 10, keyword match on non-trivial-work verbs (implement/build/refactor/migrate/redesign/rewrite/integrate/set up/across/multiple), non_slash, ignorecase, approach-selection guidance (subagent/orchestration/just-do-it) + subagent context reminder; plan judgment removed (owned by plan-mode nudge)
 - `nudges/UserPromptSubmit/20-workflow.json` - `workflow` handler, priority 20, workflow routing guidance
 - `nudges/UserPromptSubmit/30-output-readability.json` - pure data, keyword match, self-cancelling human-parsable-deliverable reminder
+- `nudges/UserPromptSubmit/40-ask-user-question.json` - pure data, priority 40, keyword match on decision/fork language (which/should/prefer/choose/decide/decision/options/recommend/better/versus/vs/trade-offs/pick), non_slash, ignorecase, AskUserQuestion routing + research-first + sensible-default guidance
+- `nudges/UserPromptSubmit/50-plan-mode.json` - pure data, non_slash only (no match patterns = always evaluates), priority 50, plan-mode judgment nudge - instructs model to self-assess complexity and enter plan mode if warranted; self-cancels on trivial tasks; owns "whether to plan at all"
 - `nudges/PreToolUse/00-plan.json` - pure data, self-gates on match_target tool_name=EnterPlanMode, plan readability guidance
 - `nudges/PreToolUse/10-background-exec.json` - pure data, match_target command (tool_input.command on Bash), background-execution + token-efficiency guidance
 - `nudges/SubagentStart/00-subagent-routing.json` - pure data, match_target agent_type, breadth-over-depth guidance for Explore/Plan agents
@@ -134,6 +138,8 @@ A declarative hook engine driven by a JSON nudge registry. One engine dispatches
   - `test_drop_in_fixture_nudge_fires_end_to_end`: writes a fixture nudge JSON, verifies it fires on trigger and is absent on non-match, cleans up in finally (extensibility guarantee)
   - `test_append_when_respects_match_target`: fixture nudge with `match_target=agent_type` and `append_when`; verifies appended text appears when agent_type matches (issue #3)
   - `test_approach_assessment_fires_on_complexity_keyword` / `test_approach_assessment_silent_on_trivial_prompt`: verify approach-assessment nudge fires on non-trivial-work verbs and stays silent on trivial prompts
+  - `test_ask_user_question_fires_on_decision_keyword` / `test_ask_user_question_silent_on_plain_prompt`: verify ask-user-question nudge fires on decision/fork language and stays silent on plain prompts
+  - `test_plan_mode_evaluates_on_any_prompt` / `test_plan_mode_silent_on_bypass`: verify plan-mode nudge fires on every non-bypass prompt (including trivial ones) and stays silent on `*` prefix bypass
 - Builtins tests unit-test `improve`/`workflow`/`saved_workflow_exists` in-process
 - Rules tests cover `validate_rule` rejection cases, the capability matrix, and the loader
 - Skill tests validate file structure, frontmatter, and references
@@ -200,6 +206,8 @@ A declarative hook engine driven by a JSON nudge registry. One engine dispatches
 - Reorganized nudges/ from flat (`nudges/*.json`) to per-event subdirectories (`nudges/<EventName>/*.json`); the loader now globs recursively and enforces that each rule's `event` field matches its parent directory name - files loose in `nudges/` root are skipped; deleted `nudges/mcp-tools.json`
 - Added output-readability nudge (UserPromptSubmit, keyword match, self-cancelling); moved background-exec from UserPromptSubmit to PreToolUse/Bash so it fires only when a Bash command is actually about to run - PreToolUse matcher now covers both EnterPlanMode and Bash
 - Swapped merge priority of approach-assessment and workflow nudges on UserPromptSubmit: approach-assessment (general approach-selection guidance) now fires at priority 10 before workflow (narrow orchestration specialization) at priority 20; files renamed to match (10-approach-assessment.json, 20-workflow.json)
+- Added ask-user-question nudge (UserPromptSubmit, priority 40, keyword match on decision/fork language): routes genuine user-owned ambiguous forks through AskUserQuestion with concrete options; research-first when context is thin; pick sensible default for minor choices - extends the "fire wide, self-cancel cheap" pattern
+- Extracted plan-mode judgment from approach-assessment into a dedicated `50-plan-mode.json` nudge (UserPromptSubmit, priority 50, always-evaluate via non_slash-only criteria); approach-assessment now focuses purely on approach selection (subagent/orchestration/just-do-it); plan-mode nudge owns "whether to plan at all" via model self-assessment with no keyword gate (complexity is not lexical)
 <!-- END AUTO-MANAGED -->
 
 <!-- AUTO-MANAGED: best-practices -->

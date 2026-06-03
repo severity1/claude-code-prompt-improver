@@ -1,7 +1,7 @@
 {
   "name": "prompt-improver",
-  "description": "Intelligent prompt optimization: injects the right context at the right moment so Claude lands a better first output. Clarifies vague prompts with research-based questions, plus targeted nudges for approach selection, plan readability, workflow routing, background execution, subagent routing, and output readability",
-  "version": "0.6.0",
+  "description": "Intelligent prompt optimization: injects the right context at the right moment so Claude lands a better first output. Clarifies vague prompts with research-based questions, plus targeted nudges for approach selection, plan readability, workflow routing, background execution, subagent routing, output readability, user-decision questions, and plan-mode assessment",
+  "version": "0.6.1",
   "author": {
     "name": "severity1"
   },
