@@ -61,6 +61,18 @@ def _target_value(data, match_target):
     return value if isinstance(value, str) else ""
 
 
+# Harness-generated messages (task notifications, slash-command relays,
+# local-command output, system reminders) are not user prompts; running
+# prompt-targeted nudges on them burns tokens on every background event.
+_MACHINE_EVENT_PREFIXES = (
+    "<task-notification>",
+    "<command-message>",
+    "<local-command-stdout>",
+    "<local-command-caveat>",
+    "<system-reminder>",
+)
+
+
 def _bypassed(target_value, match_target, bypass):
     """Default policy: suppress prompt-targeted rules on */#/empty input.
 
@@ -70,7 +82,12 @@ def _bypassed(target_value, match_target, bypass):
     if bypass == "none" or match_target != "prompt":
         return False
     stripped = target_value.lstrip()
-    return not stripped or stripped.startswith("*") or stripped.startswith("#")
+    return (
+        not stripped
+        or stripped.startswith("*")
+        or stripped.startswith("#")
+        or stripped.startswith(_MACHINE_EVENT_PREFIXES)
+    )
 
 
 def _passes_criteria(data, criteria):

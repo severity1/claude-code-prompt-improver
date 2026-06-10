@@ -22,6 +22,14 @@ from pathlib import Path
 
 # --- improve: prompt-clarity evaluation wrapper -----------------------------
 
+_MACHINE_EVENT_PREFIXES = (
+    "<task-notification>",
+    "<command-message>",
+    "<local-command-stdout>",
+    "<local-command-caveat>",
+    "<system-reminder>",
+)
+
 _EVALUATION_WRAPPER = """PROMPT EVALUATION
 
 Original user request: "{prompt}"
@@ -56,6 +64,11 @@ def improve(data):
         return prompt[1:].strip()
     if prompt.startswith("/") or prompt.startswith("#"):
         return prompt
+    # Harness-generated messages (task notifications, command relays,
+    # system reminders) are not user prompts — wrapping them burns
+    # ~200 tokens per background event with zero value.
+    if prompt.lstrip().startswith(_MACHINE_EVENT_PREFIXES):
+        return ""
 
     # Escape backslashes first, then double-quotes, so the prompt embeds
     # safely inside the wrapper's quoted "Original user request" line.
