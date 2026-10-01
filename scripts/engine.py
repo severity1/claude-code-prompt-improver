@@ -29,7 +29,9 @@ _TARGET_KEYS = {
 def _read_payload():
     """Read stdin once; treat empty or invalid JSON as an empty payload."""
     try:
-        raw = sys.stdin.read()
+        # Decode bytes as UTF-8 here: text-mode stdin uses the locale code
+        # page on Windows (e.g. cp1252), which garbles or rejects non-ASCII.
+        raw = sys.stdin.buffer.read().decode("utf-8", errors="replace")
     # Intentionally broad: reading a closed stream raises ValueError, and this
     # runs after the load-rules guard in main(), so any escape here would
     # reintroduce a non-zero-exit path. Every failure mode falls back to {}.

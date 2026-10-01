@@ -9,6 +9,7 @@ robustness (bad JSON, unknown/missing event), and the zero-Python
 extensibility guarantee via a drop-in fixture nudge.
 """
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -313,6 +314,24 @@ def test_bad_json_exits_zero():
     if result.stdout.strip():
         output = json.loads(result.stdout)
         assert output["hookSpecificOutput"]["hookEventName"] == "UserPromptSubmit"
+
+
+@pytest.mark.parametrize("prompt", [
+    "summarize the café notes",  # é decodes to mojibake under cp1252
+    "fix the Łódź import",  # Ł has byte 0x81, which cp1252 cannot decode
+])
+def test_utf8_stdin_under_non_utf8_locale(prompt):
+    """Stdin is decoded as UTF-8 even when the locale encoding is not (Windows)"""
+    env = {**os.environ, "PYTHONIOENCODING": "cp1252"}
+    result = subprocess.run(
+        [sys.executable, str(ENGINE), "UserPromptSubmit"],
+        input=json.dumps({"prompt": prompt}, ensure_ascii=False).encode("utf-8"),
+        capture_output=True,
+        env=env,
+    )
+    assert result.returncode == 0, result.stderr
+    context = json.loads(result.stdout)["hookSpecificOutput"]["additionalContext"]
+    assert f'Original user request: "{prompt}"' in context
 
 
 def test_empty_stdin_exits_zero():
