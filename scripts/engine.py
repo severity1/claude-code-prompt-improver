@@ -62,7 +62,7 @@ def _target_value(data, match_target):
 
 
 def _bypassed(target_value, match_target, bypass):
-    """Default policy: suppress prompt-targeted rules on */#/empty input.
+    """Default policy: suppress prompt-targeted rules on */#/empty/machine input.
 
     Bypass applies only to prompt-targeted criteria; tool_name/agent_type
     targets and a rule with ``"bypass": "none"`` are never suppressed here.
@@ -70,7 +70,12 @@ def _bypassed(target_value, match_target, bypass):
     if bypass == "none" or match_target != "prompt":
         return False
     stripped = target_value.lstrip()
-    return not stripped or stripped.startswith("*") or stripped.startswith("#")
+    return (
+        not stripped
+        or stripped.startswith("*")
+        or stripped.startswith("#")
+        or nudge_builtins.is_machine_event(stripped)
+    )
 
 
 def _passes_criteria(data, criteria):
