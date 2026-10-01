@@ -50,6 +50,26 @@ def test_plugin_configuration():
 
     print("✓ Plugin configuration is correct")
 
+def test_hooks_json_schema():
+    """Test hooks.json uses only keys the Claude Code hook loader accepts.
+
+    The loader warns on every session start about unknown keys in a matcher
+    group (issue #47), but `claude plugin validate` does not flag them, so
+    this guards the regression.
+    """
+    config = json.loads((PROJECT_ROOT / "hooks" / "hooks.json").read_text())
+
+    for event, groups in config["hooks"].items():
+        for i, group in enumerate(groups):
+            extra = set(group) - {"matcher", "hooks"}
+            assert not extra, f"hooks.{event}[{i}] has unknown keys {sorted(extra)}"
+            for hook in group["hooks"]:
+                # Unquoted, a plugin path containing a space splits the command.
+                assert "${CLAUDE_PLUGIN_ROOT}/" not in hook["command"].replace('"${CLAUDE_PLUGIN_ROOT}/', ""), \
+                    f"hooks.{event}[{i}] leaves ${{CLAUDE_PLUGIN_ROOT}} unquoted"
+
+    print("✓ hooks.json matches the loader schema")
+
 def test_end_to_end_flow():
     """Test complete flow from prompt to evaluation"""
     # Test normal prompt
