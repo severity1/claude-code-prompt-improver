@@ -20,15 +20,29 @@ builtins.py would be permanently shadowed and never importable.
 import re
 from pathlib import Path
 
-# --- improve: prompt-clarity evaluation wrapper -----------------------------
+# --- machine events: harness messages that arrive as UserPromptSubmit -------
 
+# Harness-generated messages (task notifications, slash-command relays,
+# local-command output, system reminders) are not user prompts; running
+# prompt nudges on them burns tokens on every background event. Shared by
+# the handlers below and the engine's default bypass so the list cannot drift.
 _MACHINE_EVENT_PREFIXES = (
     "<task-notification>",
+    "<command-name>",
     "<command-message>",
     "<local-command-stdout>",
+    "<local-command-stderr>",
     "<local-command-caveat>",
     "<system-reminder>",
 )
+
+
+def is_machine_event(text):
+    """True if text starts (after leading whitespace) with a harness tag."""
+    return text.lstrip().startswith(_MACHINE_EVENT_PREFIXES)
+
+
+# --- improve: prompt-clarity evaluation wrapper -----------------------------
 
 _EVALUATION_WRAPPER = """PROMPT EVALUATION
 
@@ -55,6 +69,7 @@ def improve(data):
     Always returns a string. Bypass prefixes short-circuit the wrapper:
     - ``*`` strips the prefix and returns the bare prompt
     - ``/`` (slash commands) and ``#`` (memorize) pass through unchanged
+    - harness machine events return an empty string (nothing emitted)
     """
     prompt = data.get("prompt", "")
     if not isinstance(prompt, str):
@@ -64,10 +79,7 @@ def improve(data):
         return prompt[1:].strip()
     if prompt.startswith("/") or prompt.startswith("#"):
         return prompt
-    # Harness-generated messages (task notifications, command relays,
-    # system reminders) are not user prompts — wrapping them burns
-    # ~200 tokens per background event with zero value.
-    if prompt.lstrip().startswith(_MACHINE_EVENT_PREFIXES):
+    if is_machine_event(prompt):
         return ""
 
     # Escape backslashes first, then double-quotes, so the prompt embeds
@@ -140,8 +152,9 @@ def workflow(data):
 
     stripped = prompt.lstrip()
 
-    # * (explicit bypass) and # (memorize) suppress guidance entirely.
-    if stripped.startswith("*") or stripped.startswith("#"):
+    # * (explicit bypass), # (memorize), and harness machine events suppress
+    # guidance entirely; a workflow task-notification names "workflow".
+    if stripped.startswith("*") or stripped.startswith("#") or is_machine_event(stripped):
         return None
 
     is_ultracode = bool(_EFFORT_ULTRACODE.match(stripped))

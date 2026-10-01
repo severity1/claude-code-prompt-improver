@@ -61,20 +61,8 @@ def _target_value(data, match_target):
     return value if isinstance(value, str) else ""
 
 
-# Harness-generated messages (task notifications, slash-command relays,
-# local-command output, system reminders) are not user prompts; running
-# prompt-targeted nudges on them burns tokens on every background event.
-_MACHINE_EVENT_PREFIXES = (
-    "<task-notification>",
-    "<command-message>",
-    "<local-command-stdout>",
-    "<local-command-caveat>",
-    "<system-reminder>",
-)
-
-
 def _bypassed(target_value, match_target, bypass):
-    """Default policy: suppress prompt-targeted rules on */#/empty input.
+    """Default policy: suppress prompt-targeted rules on */#/empty/machine input.
 
     Bypass applies only to prompt-targeted criteria; tool_name/agent_type
     targets and a rule with ``"bypass": "none"`` are never suppressed here.
@@ -86,7 +74,7 @@ def _bypassed(target_value, match_target, bypass):
         not stripped
         or stripped.startswith("*")
         or stripped.startswith("#")
-        or stripped.startswith(_MACHINE_EVENT_PREFIXES)
+        or nudge_builtins.is_machine_event(stripped)
     )
 
 

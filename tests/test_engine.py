@@ -127,6 +127,34 @@ def test_hash_bypass_passthrough():
     assert context == "# note for later"
 
 
+MACHINE_EVENTS = [
+    "<task-notification>Workflow run wf_abc completed</task-notification>",
+    "<command-name>/clear</command-name>\n<command-message>clear</command-message>",
+    "<command-message>review is running</command-message>",
+    "<local-command-stdout>done</local-command-stdout>",
+    "<local-command-stderr>error: build the plan</local-command-stderr>",
+    "<local-command-caveat>Caveat: implement nothing</local-command-caveat>",
+    "  <system-reminder>which option should I pick</system-reminder>",
+]
+
+
+@pytest.mark.parametrize("prompt", MACHINE_EVENTS)
+def test_machine_event_emits_nothing(prompt):
+    """Harness machine events skip every prompt nudge, even with trigger keywords"""
+    result = run_engine("UserPromptSubmit", {"prompt": prompt})
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == ""
+
+
+def test_mid_string_machine_tag_still_wraps():
+    """A tag that does not lead the prompt is a real user prompt"""
+    context = context_of(
+        run_engine("UserPromptSubmit", {"prompt": "why does <system-reminder> appear?"}),
+        "UserPromptSubmit",
+    )
+    assert "PROMPT EVALUATION" in context
+
+
 # ---------------------------------------------------------------------------
 # PreToolUse (plan) + SubagentStart nudges
 # ---------------------------------------------------------------------------

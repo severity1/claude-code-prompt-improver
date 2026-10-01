@@ -61,6 +61,11 @@ def test_improve_bypass_hash():
     assert improve({"prompt": "# remember to use TypeScript"}) == "# remember to use TypeScript"
 
 
+def test_improve_machine_event_silent():
+    """Harness machine events produce an empty fragment"""
+    assert improve({"prompt": "<task-notification>done</task-notification>"}) == ""
+
+
 def test_improve_evaluation_wrapper():
     """Normal prompts get the evaluation wrapper"""
     context = improve({"prompt": "fix the bug"})
@@ -127,6 +132,11 @@ def test_workflow_plural_keyword_triggers():
 def test_workflow_management_command_silent():
     """/workflows is a run-management command, not a launch trigger"""
     assert workflow({"prompt": "/workflows"}) is None
+
+
+def test_workflow_machine_event_silent():
+    """A workflow task-notification names "workflow" but is not a user request"""
+    assert workflow({"prompt": "<task-notification>Workflow wf_abc completed</task-notification>"}) is None
 
 
 def test_workflow_conditional_guard_present():
