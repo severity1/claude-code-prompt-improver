@@ -47,7 +47,7 @@ A declarative hook engine driven by a JSON nudge registry. One engine dispatches
 
 **Engine Layer (scripts/):**
 - `engine.py`: Event dispatcher and sole entry point - invoked as `engine.py <EventName>`
-  - Reads stdin once; treats empty/invalid JSON as `{}` (centralizes exit-0)
+  - Reads stdin once as UTF-8 bytes (not text mode, which uses the locale code page on Windows); treats empty/invalid JSON as `{}` (centralizes exit-0)
   - Runs the event's rules (each wrapped in try/except so one bad rule cannot suppress others), merges `inject_context` fragments by `priority` with a blank-line join
   - `_render_action` evaluates `append_when` clauses against the rule's `match_target` value (not hardcoded prompt) - required for non-prompt targets like `agent_type`
   - Emits one `hookSpecificOutput` object; exits 0 always - missing/unknown event or no rules is a clean no-op that never reads stdin

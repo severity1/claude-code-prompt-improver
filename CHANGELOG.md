@@ -2,6 +2,17 @@
 
 All notable changes to the Claude Code Prompt Improver project.
 
+## [0.6.3] - 2026-10-01
+
+### Fixed
+- The engine now decodes stdin as UTF-8 on all platforms. Before, Windows decoded it with the locale code page (for example cp1252). A prompt with non-ASCII text was then garbled, or it failed to decode, and no nudges fired with no error. Idea from #15 (thanks @xobosox)
+
+### Added
+- `test_utf8_stdin_under_non_utf8_locale` in `tests/test_engine.py`: runs the engine with `PYTHONIOENCODING=cp1252` and makes sure that non-ASCII prompts arrive unchanged
+
+### Changed
+- Bumped plugin version to 0.6.3
+
 ## [0.6.2] - 2026-10-01
 
 ### Fixed
