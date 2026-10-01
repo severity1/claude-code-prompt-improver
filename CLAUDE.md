@@ -118,7 +118,8 @@ A declarative hook engine driven by a JSON nudge registry. One engine dispatches
 - `*` prefix: Skip evaluation entirely, strip prefix from prompt (improve emits the bare prompt)
 - `/` prefix: Slash commands bypass automatically
 - `#` prefix: Memorize commands bypass automatically
-- Default `bypass` policy in the engine suppresses prompt-targeted criteria rules on `*`/`#`/empty; handlers own their own bypass logic
+- Harness machine events (prompt starts with `<task-notification>`, `<command-name>`, `<command-message>`, `<local-command-stdout|stderr|caveat>`, or `<system-reminder>`) bypass all prompt nudges; the prefix list lives once in `nudge_builtins.is_machine_event`, shared by the engine and both handlers
+- Default `bypass` policy in the engine suppresses prompt-targeted criteria rules on `*`/`#`/empty/machine events; handlers own their own bypass logic
 
 **File paths:**
 - Use forward slashes (Unix-style) per Claude Code standards

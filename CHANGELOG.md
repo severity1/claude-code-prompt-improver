@@ -2,6 +2,21 @@
 
 All notable changes to the Claude Code Prompt Improver project.
 
+## [0.6.2] - 2026-10-01
+
+### Fixed
+- `hooks/hooks.json`: removed the `description` key from each matcher group. The hook loader accepts only `matcher` and `hooks` there, so every session start printed an "unknown keys" warning (#47, #48)
+- `hooks/hooks.json`: put `${CLAUDE_PLUGIN_ROOT}` in quotes, so an install path that contains a space no longer splits the command (#48)
+- Harness machine events that arrive through `UserPromptSubmit` (`<task-notification>`, `<command-name>`, `<command-message>`, `<local-command-stdout>`, `<local-command-stderr>`, `<local-command-caveat>`, `<system-reminder>`) no longer get prompt nudges. Before, each background event received the full evaluation wrapper (about 200 tokens), and a workflow task notification also received workflow guidance (#45)
+
+### Changed
+- The machine-event prefix list lives once in `nudge_builtins.is_machine_event`. The engine default bypass and the `improve` and `workflow` handlers all use it (#45)
+- Bumped plugin version to 0.6.2
+
+### Added
+- `test_hooks_json_schema` in `tests/test_integration.py`: fails on unknown matcher-group keys and on an unquoted `${CLAUDE_PLUGIN_ROOT}`. `claude plugin validate` does not catch the key problem (#48)
+- Engine tests for each machine-event prefix, a test where the tag is in the middle of the prompt and must still wrap, and handler tests for `improve` and `workflow` (#45)
+
 ## [0.6.1] - 2026-06-03
 
 ### Added

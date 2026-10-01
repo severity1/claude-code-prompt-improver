@@ -175,6 +175,8 @@ claude "/help"                              # / = slash commands bypass
 claude "# remember to use rg over grep"     # # = memorize bypass
 ```
 
+Harness messages that arrive as prompts (for example `<task-notification>` or `<system-reminder>`) also bypass every prompt nudge.
+
 **Vague prompt:**
 ```bash
 $ claude "fix the error"
@@ -309,7 +311,7 @@ The parent directory is authoritative: a rule whose `event` field does not match
 | `action` | one of | `{ "type": "inject_context", "text": [lines], "append_when": [{ "match": [regex], "text": [lines] }] }` |
 | `handler` | one of | String naming a callable in `nudge_builtins.HANDLERS` (escape hatch) |
 | `criteria` | no | `match`/`exclude` (regex arrays), `match_target` (`prompt`\|`tool_name`\|`agent_type`\|`command`; `command` reads nested `tool_input.command`), `non_slash`, `flags`, `builtin` |
-| `bypass` | no | `default` (suppress on `*`/`#`/empty for prompt targets) or `none` |
+| `bypass` | no | `default` (suppress on `*`/`#`/empty/harness machine events for prompt targets) or `none` |
 | `priority` | no | Merge order (lower first); default 100 |
 
 Provide exactly one of `action` or `handler`. `text` is an array of lines joined with newlines at load (clean multiline diffs). `append_when` models a conditional clause declaratively (used by the ultracode clause). Invalid rows are skipped with a stderr note; the engine still exits 0.
